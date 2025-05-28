@@ -1,0 +1,19 @@
+{
+    "manifest_version": 3,
+    "name": "Email AI Assistant",
+    "version": "0.1",
+    "description": "Summarize, sentiment-tag, and suggest replies for selected email text.",
+    "permissions": [
+      "activeTab",
+      "scripting",
+      "storage"
+    ],
+    "host_permissions": [
+      "http://localhost:5000/*"
+    ],
+    "action": {
+      "default_title": "Email AI",
+      "default_popup": "popup.html"
+    }
+  }
+  
