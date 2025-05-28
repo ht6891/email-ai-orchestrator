@@ -20,7 +20,10 @@ summarizer = pipeline(
 #     device=0
 # )
 
-sentiment_analyzer = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
+# 2) Sentiment pipeline
+sentiment_analyzer = pipeline(
+    "sentiment-analysis",
+    model="nlptown/bert-base-multilingual-uncased-sentiment")
 
 
 # 3) Reply generation via Ollama Gemma-3
