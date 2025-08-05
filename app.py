@@ -14,10 +14,13 @@
 #
 
 from flask import Flask, request, jsonify
+from transformers import pipeline
 import subprocess, shlex, re, email, imaplib, json
 import pandas as pd
 import time
 
+# 이메일/대화 요약 특화 모델
+summarizer = pipeline("summarization", model="philschmid/bart-large-cnn-samsum")
 app = Flask(__name__)
 
 #
@@ -31,17 +34,14 @@ app = Flask(__name__)
 
 def summarize_text(text: str) -> str:
     """
-    Real mode (uncomment the two lines above):
-        out = summarizer(text, max_length=150, min_length=40, do_sample=False)
-        return out[0]['summary_text']
-
-    Dummy fallback:
-      Very naive: return the first two sentences separated by “. ”
+    Use Samsum fine-tuned summarizer for chat/email summary.
     """
-    sentences = re.split(r'\. ', text.strip(), maxsplit=2)
-    if len(sentences) <= 2:
-        return text.strip()
-    return sentences[0].strip() + ". " + sentences[1].strip() + "."
+    try:
+        result = summarizer(text, max_length=100, min_length=20, do_sample=False)
+        return result[0]['summary_text']
+    except Exception as e:
+        return f"(Error summarizing: {e})"
+
 
 #
 # ----------------------------
