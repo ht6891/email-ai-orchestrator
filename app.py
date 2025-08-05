@@ -152,14 +152,18 @@ def fetch_latest_email_dummy():
 # Flask Endpoints
 # ----------------------------
 #
-@app.route("/summarize", methods=["POST"])
-def summarize_endpoint():
-    payload = request.get_json()
-    text = payload.get("text", "").strip()
-    if not text:
-        return jsonify({"error": "no text provided"}), 400
-    summary = summarize_text(text)
-    return jsonify({"summary": summary})
+@app.route('/summarize', methods=['POST'])
+def summarize():
+    text = request.json['text']
+    prompt = (
+        "Summarize the following email into 1–2 concise sentences. "
+        "Focus only on the core request or issue. "
+        "Ignore footers, signatures, disclaimers, and repeated context.\n\n"
+        f"{text}"
+    )
+    response = model.generate(prompt)
+    return jsonify({'summary': response})
+
 
 @app.route("/sentiment", methods=["POST"])
 def sentiment_endpoint():
