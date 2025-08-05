@@ -86,30 +86,29 @@ def analyze_sentiment(text: str) -> dict:
 # ----------------------------
 #
 def generate_reply_with_gemma3(prompt: str) -> str:
-    """
-    Real mode (requires Ollama CLI + Gemma3:4b):
-        cmd = "ollama run gemma3:4b"
-        try:
-            proc = subprocess.run(
-                shlex.split(cmd),
-                input=prompt,
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
-            if proc.returncode != 0:
-                return f"Error: {proc.stderr.strip()}"
-            return proc.stdout.strip()
-        except subprocess.TimeoutExpired:
-            return "Error: Model timed out."
-        except Exception as e:
-            return f"Exception: {e}"
+    cmd = "ollama run gemma:2b"  # 또는 gemma3:4b 사용
+    full_prompt = (
+        "Below is the text of an email.\n"
+        "Write a polite and relevant reply in professional English:\n\n"
+        f"{prompt.strip()}\n\n"
+        "Reply:"
+    )
+    try:
+        proc = subprocess.run(
+            shlex.split(cmd),
+            input=full_prompt,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        if proc.returncode != 0:
+            return f"Error: {proc.stderr.strip()}"
+        return proc.stdout.strip()
+    except subprocess.TimeoutExpired:
+        return "Error: Model timed out."
+    except Exception as e:
+        return f"Exception: {e}"
 
-    Dummy fallback:
-       Return a generic “thanks and I’ll get back” template.
-    """
-    return ("Thank you for your email. I appreciate the update. "
-            "I will review and get back to you by end of day.")
 
 #
 # ----------------------------
