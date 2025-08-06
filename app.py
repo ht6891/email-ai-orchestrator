@@ -33,14 +33,20 @@ app = Flask(__name__)
 #    summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-6-6", device=-1)
 
 def summarize_text(text: str) -> str:
-    """
-    Use Samsum fine-tuned summarizer for chat/email summary.
-    """
+    # 긴 이메일을 자르고 요약을 짧게 유도
+    text = text.strip().replace("\n", " ")
+    text = text[:1000]  # 입력 길이 제한
+
     try:
-        result = summarizer(text, max_length=100, min_length=20, do_sample=False)
+        result = summarizer(
+            f"Summarize the following email briefly in 1-2 sentences:\n{text}",
+            max_length=60,
+            min_length=15,
+            do_sample=False
+        )
         return result[0]['summary_text']
     except Exception as e:
-        return f"(Error summarizing: {e})"
+        return f"Summary Error: {e}"
 
 
 #
@@ -85,29 +91,53 @@ def analyze_sentiment(text: str) -> dict:
 # 3) Reply Generation “Model”
 # ----------------------------
 #
+import subprocess
+import shlex
+
 def generate_reply_with_gemma3(prompt: str) -> str:
-    cmd = "ollama run gemma:2b"  # 또는 gemma3:4b 사용
-    full_prompt = (
-        "Below is the text of an email.\n"
-        "Write a polite and relevant reply in professional English:\n\n"
-        f"{prompt.strip()}\n\n"
-        "Reply:"
-    )
+    # 프롬프트 명확화
+    refined_prompt = f"""You are an assistant that writes polite, professional email replies.
+Based on the following email, please write a short and relevant reply.
+
+--- EMAIL START ---
+{prompt}
+--- EMAIL END ---
+
+Reply:
+"""
+
     try:
+        cmd = "ollama run gemma3:4b"
         proc = subprocess.run(
             shlex.split(cmd),
-            input=full_prompt,
+            input=refined_prompt,
             capture_output=True,
-            text=True,
-            timeout=60
+            text=True,               # 텍스트 모드
+            encoding='utf-8',        # ✅ 정확한 인코딩 명시
+            timeout=60               # 모델 타임아웃
         )
+
         if proc.returncode != 0:
-            return f"Error: {proc.stderr.strip()}"
-        return proc.stdout.strip()
+            print(f"[Gemma Error] stderr: {proc.stderr}")
+            return "⚠️ Error generating reply. Please try again."
+
+        output = proc.stdout.strip()
+
+        # 모델이 프롬프트 자체를 그대로 반환한 경우 제거
+        if "Please provide me" in output or output.lower().startswith("please provide"):
+            return "⚠️ The model did not return a valid reply. Try with a longer or clearer email."
+
+        # Gemma가 프롬프트 포함시켰을 경우 제거
+        if "Reply:" in output:
+            output = output.split("Reply:", 1)[-1].strip()
+
+        return output or "⚠️ The model returned an empty response."
+
     except subprocess.TimeoutExpired:
-        return "Error: Model timed out."
+        return "⚠️ Reply generation timed out. Please try again."
+
     except Exception as e:
-        return f"Exception: {e}"
+        return f"⚠️ Unexpected error: {str(e)}"
 
 
 #
