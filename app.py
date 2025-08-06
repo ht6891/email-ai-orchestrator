@@ -15,6 +15,7 @@
 
 from flask import Flask, request, jsonify
 from transformers import pipeline
+from email_cleaner import remove_signature
 import subprocess, shlex, re, email, imaplib, json
 import pandas as pd
 import time
@@ -114,7 +115,7 @@ Reply:
             capture_output=True,
             text=True,               # 텍스트 모드
             encoding='utf-8',        # ✅ 정확한 인코딩 명시
-            timeout=60               # 모델 타임아웃
+            timeout=180               # 모델 타임아웃
         )
 
         if proc.returncode != 0:
@@ -215,6 +216,35 @@ def fetch_email_endpoint():
     """
     body = fetch_latest_email_dummy()
     return jsonify({"email_body": body})
+
+@app.route("/api/emails", methods=["GET"])
+def api_emails():
+    from run_fetch import fetch_emails
+    emails = fetch_emails(max_results=10)
+    result = []
+
+    for email in emails:
+        cleaned = remove_signature(email)
+        summary = summarize_text(cleaned)
+        sentiment = analyze_sentiment(cleaned)["mapped_category"]
+        result.append({
+            "subject": email.split("\n")[0][:50],  # 제목 대체용
+            "summary": summary,
+            "sentiment": sentiment
+        })
+
+    return jsonify(result)
+
+@app.route("/process", methods=["POST"])
+def process_input():
+    text = request.json.get("text", "")
+    cleaned = remove_signature(text)
+    summary = summarize_text(cleaned)
+    sentiment = analyze_sentiment(cleaned)["mapped_category"]
+    return jsonify({
+        "summary": summary,
+        "sentiment": sentiment
+    })
 
 if __name__ == "__main__":
     # Runs on http://0.0.0.0:5000 by default

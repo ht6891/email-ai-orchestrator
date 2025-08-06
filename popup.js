@@ -1,32 +1,44 @@
-const API = "http://localhost:5000";
+// 이메일 리스트 가져오기 및 UI 렌더링
+fetch("http://localhost:5000/api/emails")
+  .then(res => res.json())
+  .then(data => {
+    const list = document.getElementById("email-list");
+    list.innerHTML = ""; // 초기 메시지 제거
 
-async function callEndpoint(path, text) {
-  let resp = await fetch(API + path, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({text})
+    data.forEach((email, idx) => {
+      const item = document.createElement("div");
+      item.textContent = `${idx + 1}. ${email.subject || "(No Subject)"}`;
+      item.addEventListener("click", () => {
+        document.getElementById("email-details").style.display = "block";
+        document.getElementById("summary-result").innerText = email.summary;
+        document.getElementById("sentiment-result").innerText = email.sentiment;
+      });
+      list.appendChild(item);
+    });
+  })
+  .catch(err => {
+    document.getElementById("email-list").innerText = "❌ Failed to load emails.";
+    console.error(err);
   });
-  let j = await resp.json();
-  return JSON.stringify(j, null, 2);
-}
 
-document.getElementById("btnSumm").onclick = async () => {
-  let txt = document.getElementById("inputText").value;
-  document.getElementById("output").textContent = "⏳ Summarizing…";
-  let out = await callEndpoint("/summarize", txt);
-  document.getElementById("output").textContent = out;
-};
+// 수동 입력 분석
+document.getElementById("analyze-manual").addEventListener("click", () => {
+  const text = document.getElementById("manual-input").value.trim();
+  if (!text) return alert("Please enter some email text.");
 
-document.getElementById("btnSent").onclick = async () => {
-  let txt = document.getElementById("inputText").value;
-  document.getElementById("output").textContent = "⏳ Analyzing…";
-  let out = await callEndpoint("/sentiment", txt);
-  document.getElementById("output").textContent = out;
-};
-
-document.getElementById("btnReply").onclick = async () => {
-  let txt = document.getElementById("inputText").value;
-  document.getElementById("output").textContent = "⏳ Generating reply…";
-  let out = await callEndpoint("/reply", txt);
-  document.getElementById("output").textContent = out;
-};
+  fetch("http://localhost:5000/process", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text })
+  })
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("email-details").style.display = "block";
+      document.getElementById("summary-result").innerText = data.summary;
+      document.getElementById("sentiment-result").innerText = data.sentiment;
+    })
+    .catch(err => {
+      alert("Error processing input.");
+      console.error(err);
+    });
+});

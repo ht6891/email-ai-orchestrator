@@ -1,23 +1,63 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8"/>
-  <title>Email AI</title>
-  <style>
-    body { font-family: sans-serif; width:280px; padding:10px }
-    textarea { width:100%; height:100px; }
-    pre { background:#f5f5f5; padding:5px; overflow-x:auto }
-    button { margin:5px 0; width:100%; }
-  </style>
-</head>
-<body>
-  <h3>Email AI</h3>
-  <textarea id="inputText" placeholder="Paste email here…"></textarea>
-  <button id="btnSumm">Summarize</button>
-  <button id="btnSent">Sentiment</button>
-  <button id="btnReply">Suggest Reply</button>
-  <h4>Result</h4>
-  <pre id="output"></pre>
+  <head>
+    <title>Email AI Orchestrator</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 12px;
+        width: 350px;
+      }
+      h2 {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+      #email-list div {
+        padding: 8px;
+        border-bottom: 1px solid #ccc;
+        cursor: pointer;
+      }
+      #email-list div:hover {
+        background-color: #f0f0f0;
+      }
+      textarea {
+        width: 100%;
+        height: 100px;
+        margin-top: 10px;
+      }
+      button {
+        margin-top: 6px;
+        width: 100%;
+        padding: 8px;
+      }
+      #email-details {
+        margin-top: 16px;
+        background: #f9f9f9;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      #summary-result, #sentiment-result {
+        margin: 5px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Email AI Assistant</h2>
+
+    <div id="email-list">Loading emails...</div>
+
+    <div id="email-details" style="display:none;">
+      <h3>Summary:</h3>
+      <p id="summary-result"></p>
+      <h3>Sentiment:</h3>
+      <p id="sentiment-result"></p>
+    </div>
+
+    <hr />
+
+    <h3>Manual Text Input</h3>
+    <textarea id="manual-input" placeholder="Paste email text here..."></textarea>
+    <button id="analyze-manual">Analyze</button>
+  </body>
   <script src="popup.js"></script>
-</body>
 </html>
