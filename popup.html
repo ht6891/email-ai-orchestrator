@@ -4,113 +4,39 @@
   <meta charset="utf-8"/>
   <title>Email AI Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-
   <style>
     :root{
-      --bg:#0f172a;           /* slate-900 */
-      --panel:#111827;        /* gray-900 */
-      --muted:#6b7280;        /* gray-500 */
-      --card:#111827;
-      --card2:#0b1222;
-      --text:#e5e7eb;         /* gray-200 */
-      --accent:#22d3ee;       /* cyan-400 */
-      --accent-2:#60a5fa;     /* blue-400 */
-      --good:#10b981;         /* emerald-500 */
-      --warn:#f59e0b;         /* amber-500 */
-      --bad:#ef4444;          /* red-500 */
-      --border:#1f2937;       /* gray-800 */
+      --bg:#0f172a; --panel:#111827; --muted:#6b7280; --card:#111827; --card2:#0b1222;
+      --text:#e5e7eb; --accent:#22d3ee; --border:#1f2937; --good:#10b981; --warn:#f59e0b; --bad:#ef4444;
     }
-    * { box-sizing: border-box; }
-    html, body { margin:0; padding:0; }
-    body {
-      font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Apple SD Gothic Neo, "맑은 고딕", Arial, sans-serif;
-      color: var(--text);
-      background: radial-gradient(1200px 500px at 50% -10%, rgba(96,165,250,.18), rgba(34,211,238,.1) 30%, transparent 60%) , var(--bg);
-      width: 360px; min-height: 560px; padding: 14px;
-    }
-    h1{
-      margin: 0 0 10px;
-      font-size: 18px; font-weight: 700;
-      letter-spacing:.2px;
-      display:flex; align-items:center; gap:8px;
-    }
-    .pill{
-      font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted);
-    }
-
-    .toolbar{
-      display:flex; gap:8px; margin: 8px 0 12px;
-    }
-    .btn{
-      appearance:none; border:none; cursor:pointer;
-      padding:8px 10px; border-radius:10px;
-      background:linear-gradient(180deg, #1f2937, #0b1324);
-      color:#e5e7eb; border:1px solid var(--border);
-      transition: transform .05s ease, box-shadow .2s ease, border .2s ease;
-      font-weight:600; font-size:12px;
-    }
-    .btn:hover{ box-shadow: 0 8px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(96,165,250,.25); border-color:#2a3b56;}
-    .btn:active{ transform: translateY(1px) scale(.99); }
-    .btn.primary{ background: linear-gradient(180deg, #1b3a55, #0c1f39); border-color:#1e3a8a; }
-    .btn.success{ border-color:#064e3b; background: linear-gradient(180deg, #064e3b, #022c22); }
-    .btn.full{ flex:1; }
-
-    .split{
-      display:grid; grid-template-columns: 1fr; gap:12px;
-    }
-
-    .card{
-      background: linear-gradient(180deg, var(--card), var(--card2));
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      overflow:hidden;
-    }
-    .card .head{
-      display:flex; align-items:center; justify-content:space-between;
-      padding:10px 12px; border-bottom:1px solid var(--border);
-      font-weight:700; letter-spacing:.2px; color:#cbd5e1;
-    }
-    .card .body{ padding:10px 12px; }
-
-    /* Email list */
-    #emailList{ display:flex; flex-direction:column; gap:8px; }
-    .email-item{
-      padding:10px; border:1px solid var(--border); border-radius:12px;
-      background: linear-gradient(180deg, #0d162a, #0b1222);
-      cursor:pointer; transition: box-shadow .2s ease, border .2s ease, transform .05s ease;
-    }
-    .email-item:hover{ box-shadow:0 8px 18px rgba(0,0,0,.25); border-color:#243244; }
-    .email-item:active{ transform: translateY(1px) scale(.99); }
-    .email-item .subj{ font-weight:600; color:#e5e7eb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .email-item .meta{ color:var(--muted); font-size:11px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-
-    /* Analysis blocks */
-    .grid{ display:grid; grid-template-columns: 1fr; gap:10px; }
-    .analysis{ border-left:3px solid #2a3b56; }
-    .sentiment.positive{ border-left-color: var(--good);}
-    .sentiment.neutral{ border-left-color: var(--warn);}
-    .sentiment.negative{ border-left-color: var(--bad);}
-
-    .muted{ color: var(--muted); }
-    textarea, input, pre{
-      width:100%; border-radius:12px; border:1px solid var(--border);
-      background: #0b1222; color: var(--text);
-      padding:10px; font: inherit;
-    }
-    textarea{ min-height: 110px; resize: vertical; }
-    pre{ white-space: pre-wrap; }
-
-    .row{ display:flex; gap:8px; }
-    .tag{ font-size:11px; padding:2px 6px; border:1px solid var(--border); border-radius:999px; color:#cbd5e1; }
-
-    .spinner{
-      width:16px;height:16px;border-radius:50%;
-      border:2px solid rgba(255,255,255,.15);
-      border-top-color: var(--accent);
-      animation: spin .8s linear infinite; display:inline-block; vertical-align:-3px; margin-right:6px;
-    }
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .hidden{ display:none; }
+    *{box-sizing:border-box} html,body{margin:0;padding:0}
+    body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Noto Sans,"Apple SD Gothic Neo","맑은 고딕",Arial,sans-serif;
+         color:var(--text); background:radial-gradient(1200px 500px at 50% -10%, rgba(96,165,250,.18), rgba(34,211,238,.1) 30%, transparent 60%), var(--bg);
+         width:360px; min-height:560px; padding:14px;}
+    h1{margin:0 0 10px; font-size:18px; font-weight:700; display:flex; gap:8px; align-items:center;}
+    .pill{font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); color:#cbd5e1;}
+    .toolbar{display:flex; gap:8px; margin:8px 0 12px;}
+    .btn{appearance:none; border:1px solid var(--border); border-radius:10px; background:linear-gradient(180deg,#1f2937,#0b1324);
+         color:#e5e7eb; padding:8px 10px; font-weight:600; font-size:12px; cursor:pointer;}
+    .btn:hover{box-shadow:0 8px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(96,165,250,.25); border-color:#2a3b56;}
+    .btn.primary{background:linear-gradient(180deg,#1b3a55,#0c1f39); border-color:#1e3a8a;} .btn.success{background:linear-gradient(180deg,#064e3b,#022c22); border-color:#064e3b;}
+    .btn.full{flex:1}
+    .card{background:linear-gradient(180deg,var(--card),var(--card2)); border:1px solid var(--border); border-radius:14px; overflow:hidden;}
+    .card .head{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border); font-weight:700; color:#cbd5e1;}
+    .card .body{padding:10px 12px}
+    #emailList{display:flex; flex-direction:column; gap:8px;}
+    .email-item{padding:10px; border:1px solid var(--border); border-radius:12px; background:linear-gradient(180deg,#0d162a,#0b1222); cursor:pointer;}
+    .email-item:hover{box-shadow:0 8px 18px rgba(0,0,0,.25); border-color:#243244;}
+    .subj{font-weight:600; color:#e5e7eb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .meta{color:var(--muted); font-size:11px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .grid{display:grid; grid-template-columns:1fr; gap:10px;}
+    .analysis{border-left:3px solid #2a3b56;}
+    .sentiment.positive{border-left-color:var(--good)} .sentiment.neutral{border-left-color:var(--warn)} .sentiment.negative{border-left-color:var(--bad)}
+    .muted{color:var(--muted)} textarea,input,pre{width:100%; border-radius:12px; border:1px solid var(--border); background:#0b1222; color:var(--text); padding:10px; font:inherit;}
+    textarea{min-height:110px; resize:vertical;} pre{white-space:pre-wrap}
+    .row{display:flex; gap:8px;} .tag{font-size:11px; padding:2px 6px; border:1px solid var(--border); border-radius:999px; color:#cbd5e1;}
+    .spinner{width:16px;height:16px;border-radius:50%; border:2px solid rgba(255,255,255,.15); border-top-color:var(--accent); animation:spin .8s linear infinite; display:inline-block; vertical-align:-3px; margin-right:6px;}
+    @keyframes spin{to{transform:rotate(360deg)}} .hidden{display:none}
   </style>
 </head>
 <body>
@@ -121,7 +47,6 @@
     <button id="btnRunAll" class="btn primary full">Run All (Summary • Sentiment • Reply)</button>
   </div>
 
-  <!-- Email list -->
   <section class="card">
     <div class="head">Inbox Preview</div>
     <div class="body">
@@ -130,7 +55,6 @@
     </div>
   </section>
 
-  <!-- Detail / analysis -->
   <section class="card" style="margin-top:12px;">
     <div class="head">Selected Email</div>
     <div class="body">
@@ -167,7 +91,6 @@
     </div>
   </section>
 
-  <!-- Manual input -->
   <section class="card" style="margin-top:12px;">
     <div class="head">Manual Text Input</div>
     <div class="body">
