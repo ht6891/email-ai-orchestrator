@@ -19,21 +19,11 @@
     spinToEN: $("spinToEN"),
     spinToKO: $("spinToKO"),
     topbar: $("topProgress"),
+    selHint: $("selHint"),
     toast: $("toast"),
-    subjectLine: $("subjectLine"),
-    metaLine: $("metaLine"),
-    search: $("searchBox"),
-    tabs: document.querySelectorAll(".tab[data-panel]"),
-    panels: {
-      fast: $("panel-summary-fast"),
-      llm: $("panel-summary-llm"),
-      sent: $("panel-sentiment"),
-      reply: $("panel-reply"),
-    }
   };
 
   let emails = [];
-  let filtered = [];
   let selected = -1;
   let topBarTimer = null;
 
@@ -70,9 +60,8 @@
       const res = await fetch(`${baseUrl}/api/emails`);
       const data = await res.json();
       emails = Array.isArray(data) ? data : [];
-      filtered = emails.slice();
       renderList();
-      if (filtered[0]) selectEmail(0);
+      if (emails[0]) selectEmail(0);
       toast("Inbox refreshed");
     } catch (e) {
       console.error(e);
@@ -80,36 +69,18 @@
     } finally { disableAll(false); topProgress(false); }
   }
 
-  function formatDate(dStr){
-    try {
-      const d = new Date(dStr);
-      if (isNaN(d.getTime())) return "";
-      return d.toLocaleDateString(undefined, { month:"short", day:"numeric" });
-    } catch { return ""; }
-  }
-
   function renderList() {
     els.list.innerHTML = "";
-    if (!filtered.length) {
-      els.listEmpty.style.display = "block";
-      els.subjectLine.textContent = "No results";
-      els.metaLine.textContent = "—";
-      selected = -1;
-      els.original.textContent = "";
-      return;
-    }
+    if (!emails.length) { els.listEmpty.style.display = "block"; els.selHint.textContent = "nothing selected"; return; }
     els.listEmpty.style.display = "none";
 
-    filtered.forEach((item, idx) => {
+    emails.forEach((item, idx) => {
       const div = document.createElement("div");
       div.className = "item" + (selected===idx ? " active" : "");
       div.dataset.id = String(idx);
-      const from = item.from || item.sender || "";
-      const date = formatDate(item.date || item.internalDate);
       div.innerHTML = `
         <div class="subj">${esc(item.subject || "(no subject)")}</div>
-        <div class="snippet">${esc(from ? from + " · " : "")}${esc(item.snippet || "")}</div>
-        <div class="meta">${esc(date)}</div>
+        <div class="snippet">${esc(item.snippet || "")}</div>
       `;
       div.addEventListener("click", () => selectEmail(idx));
       els.list.appendChild(div);
@@ -118,12 +89,9 @@
 
   function selectEmail(idx) {
     selected = idx;
-    const item = filtered[idx];
+    const item = emails[idx];
     els.original.textContent = item?.text || "(empty)";
-    els.subjectLine.textContent = item?.subject || "(no subject)";
-    const from = item?.from || item?.sender || "unknown";
-    const date = item?.date ? new Date(item.date).toLocaleString() : "";
-    els.metaLine.textContent = `${from}${date ? " • " + date : ""}`;
+    els.selHint.textContent = `selected #${idx+1}`;
     resetOutputs();
     // update list active state
     [...els.list.querySelectorAll(".item")].forEach((n,i) => n.classList.toggle("active", i===idx));
@@ -136,12 +104,12 @@
     els.sentLabel.textContent = "-";
     els.sentScore.textContent = "-";
     els.sentCat.textContent = "-";
-    const wrap = $("panel-sentiment");
+    const wrap = document.querySelector(".analysis.card.sentiment");
     wrap.classList.remove("positive","neutral","negative");
   }
 
   function getSelectedText() {
-    if (selected >= 0 && filtered[selected]?.text) return filtered[selected].text;
+    if (selected >= 0 && emails[selected]?.text) return emails[selected].text;
     const t = ($("manualText").value || "").trim();
     return t || "";
   }
@@ -189,7 +157,7 @@
       els.sentLabel.textContent = data.label || "-";
       els.sentScore.textContent = typeof data.score === "number" ? data.score.toFixed(2) : "-";
       els.sentCat.textContent = data.mapped_category || "-";
-      const wrap = $("panel-sentiment");
+      const wrap = document.querySelector(".analysis.card.sentiment");
       wrap.classList.remove("positive","neutral","negative");
       if (data.mapped_category) wrap.classList.add(data.mapped_category);
       activateTab("panel-sentiment");
@@ -224,11 +192,9 @@
       const translated = (data.translated || "").trim();
       if (!translated) return;
 
-      if (selected >= 0 && filtered[selected]) {
-        const globalIndex = emails.indexOf(filtered[selected]);
-        const patch = { text: translated, snippet: translated.slice(0,80).replace(/\n/g," ") };
-        Object.assign(filtered[selected], patch);
-        if (globalIndex >= 0) Object.assign(emails[globalIndex], patch);
+      if (selected >= 0 && emails[selected]) {
+        emails[selected].text = translated;
+        emails[selected].snippet = translated.slice(0,80).replace(/\n/g," ");
         renderList();
         selectEmail(selected);
       } else {
@@ -247,27 +213,6 @@
     catch { /* ignore */ }
   }
 
-  // tabs
-  function activateTab(panelId){
-    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-    const btns = document.querySelectorAll(".tab[data-panel]");
-    btns.forEach(b => b.classList.toggle("active", b.dataset.panel === panelId));
-    const p = $(panelId);
-    if (p) p.classList.add("active");
-  }
-
-  // search filter
-  function applyFilter() {
-    const q = (els.search.value || "").toLowerCase();
-    if (!q) { filtered = emails.slice(); renderList(); return; }
-    filtered = emails.filter(e => {
-      const hay = `${e.subject||""}\n${e.snippet||""}\n${e.text||""}`.toLowerCase();
-      return hay.includes(q);
-    });
-    selected = -1;
-    renderList();
-  }
-
   // buttons
   $("btnRefresh").addEventListener("click", fetchEmails);
   $("btnRunAll").addEventListener("click", async () => { await runSummaryFast(); await runSentiment(); await runReply(); });
@@ -275,7 +220,6 @@
   $("btnUseManual").addEventListener("click", () => {
     const t = $("manualText").value || "";
     emails = [{ subject: "Manual Text", snippet: t.slice(0,80).replace(/\n/g," "), text: t }];
-    filtered = emails.slice();
     renderList(); selectEmail(0);
   });
 
@@ -290,11 +234,6 @@
   $("btnCopyReply").addEventListener("click", () => copyText(els.reply.textContent || "", "Reply"));
   $("copySummaryFast").addEventListener("click", () => copyText(els.summary.textContent || "", "Fast summary"));
   $("copySummaryLlm").addEventListener("click", () => copyText(els.summaryLlm.textContent || "", "LLM summary"));
-
-  els.search.addEventListener("input", applyFilter);
-
-  // Tab header clicks
-  els.tabs.forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.panel)));
 
   // init
   fetchEmails();
