@@ -1,114 +1,105 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Email AI</title>
+  <title>Email AI Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <style>
-    :root {
-      --bg: #0a0a0a;
-      --panel: #111311;
-      --card: #151a15;
-      --muted: #9aa29a;
-      --text: #e6f2e6;
-      --accent: #6ee7b7;
-      --accent2: #60a5fa;
-      --danger: #f87171;
-      --border: #1f2a1f;
+    :root{
+      --bg:#0f172a; --panel:#111827; --muted:#6b7280; --card:#111827; --card2:#0b1222;
+      --text:#e5e7eb; --accent:#22d3ee; --border:#1f2937; --good:#10b981; --warn:#f59e0b; --bad:#ef4444;
     }
-    * { box-sizing: border-box; }
-    body { font-family: ui-sans-serif,system-ui,apple-system,Segoe UI,Roboto,Helvetica,Arial;
-           margin:0; background:var(--bg); color:var(--text); width:360px; }
-    header { padding:12px 14px; background:linear-gradient(180deg,#0f140f,#0a0a0a);
-             border-bottom:1px solid var(--border); }
-    header h3 { margin:0; font-size:15px; letter-spacing:.3px; }
-    .bar { display:flex; gap:8px; padding:10px 12px; border-bottom:1px solid var(--border); align-items:center; }
-    .seg { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:6px 8px; display:flex; gap:6px; align-items:center; }
-    .seg label { font-size:11px; color:var(--muted); }
-    select, button, textarea, input[type="text"] {
-      background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:10px;
-      padding:8px 10px; font-size:12px; outline:none;
-    }
-    select:hover, button:hover, textarea:hover { border-color:#244224; }
-    button { cursor:pointer; transition:.12s; }
-    button.primary { background:#0f2a1a; border-color:#1f4d2f; }
-    button.primary:hover { background:#10311e; }
-    button.ghost { background:transparent; border-color:var(--border); }
-    .row { display:flex; gap:10px; padding:10px 12px; }
-    .col { flex:1; }
-    .list { max-height:180px; overflow:auto; background:var(--panel); border:1px solid var(--border); border-radius:12px; }
-    .item { padding:8px 10px; border-bottom:1px solid var(--border); cursor:pointer; }
-    .item:hover { background:#0e120e; }
-    .item h4 { margin:0 0 4px; font-size:12px; color:#dce9dc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .item p { margin:0; font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    textarea { width:100%; height:110px; resize:vertical; }
-    .out { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:8px; min-height:70px; white-space:pre-wrap; font-size:12px; }
-    .tag { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
-    .tag.good { color:#a7f3d0; border-color:#134e4a; background:#032019; }
-    .tag.neu { color:#bfdbfe; border-color:#1e3a8a; background:#0b1733; }
-    .tag.bad { color:#fecaca; border-color:#7f1d1d; background:#2a0c0c; }
-    .progress { height:6px; background:#0f1a12; border:1px solid var(--border); border-radius:999px; overflow:hidden; display:none; }
-    .barin { height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition: width .2s; }
-    .actions { display:flex; flex-wrap:wrap; gap:8px; }
+    *{box-sizing:border-box} html,body{margin:0;padding:0}
+    body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Noto Sans,"Apple SD Gothic Neo","맑은 고딕",Arial,sans-serif;
+         color:var(--text); background:radial-gradient(1200px 500px at 50% -10%, rgba(96,165,250,.18), rgba(34,211,238,.1) 30%, transparent 60%), var(--bg);
+         width:360px; min-height:560px; padding:14px;}
+    h1{margin:0 0 10px; font-size:18px; font-weight:700; display:flex; gap:8px; align-items:center;}
+    .pill{font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); color:#cbd5e1;}
+    .toolbar{display:flex; gap:8px; margin:8px 0 12px;}
+    .btn{appearance:none; border:1px solid var(--border); border-radius:10px; background:linear-gradient(180deg,#1f2937,#0b1324);
+         color:#e5e7eb; padding:8px 10px; font-weight:600; font-size:12px; cursor:pointer;}
+    .btn:hover{box-shadow:0 8px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(96,165,250,.25); border-color:#2a3b56;}
+    .btn.primary{background:linear-gradient(180deg,#1b3a55,#0c1f39); border-color:#1e3a8a;} .btn.success{background:linear-gradient(180deg,#064e3b,#022c22); border-color:#064e3b;}
+    .btn.full{flex:1}
+    .card{background:linear-gradient(180deg,var(--card),var(--card2)); border:1px solid var(--border); border-radius:14px; overflow:hidden;}
+    .card .head{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border); font-weight:700; color:#cbd5e1;}
+    .card .body{padding:10px 12px}
+    #emailList{display:flex; flex-direction:column; gap:8px;}
+    .email-item{padding:10px; border:1px solid var(--border); border-radius:12px; background:linear-gradient(180deg,#0d162a,#0b1222); cursor:pointer;}
+    .email-item:hover{box-shadow:0 8px 18px rgba(0,0,0,.25); border-color:#243244;}
+    .subj{font-weight:600; color:#e5e7eb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .meta{color:var(--muted); font-size:11px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .grid{display:grid; grid-template-columns:1fr; gap:10px;}
+    .analysis{border-left:3px solid #2a3b56;}
+    .sentiment.positive{border-left-color:var(--good)} .sentiment.neutral{border-left-color:var(--warn)} .sentiment.negative{border-left-color:var(--bad)}
+    .muted{color:var(--muted)} textarea,input,pre{width:100%; border-radius:12px; border:1px solid var(--border); background:#0b1222; color:var(--text); padding:10px; font:inherit;}
+    textarea{min-height:110px; resize:vertical;} pre{white-space:pre-wrap}
+    .row{display:flex; gap:8px;} .tag{font-size:11px; padding:2px 6px; border:1px solid var(--border); border-radius:999px; color:#cbd5e1;}
+    .spinner{width:16px;height:16px;border-radius:50%; border:2px solid rgba(255,255,255,.15); border-top-color:var(--accent); animation:spin .8s linear infinite; display:inline-block; vertical-align:-3px; margin-right:6px;}
+    @keyframes spin{to{transform:rotate(360deg)}} .hidden{display:none}
   </style>
 </head>
 <body>
-  <header><h3>Email AI Assistant</h3></header>
+  <h1>✉️ Email AI Assistant <span class="pill">local</span></h1>
 
-  <div class="bar">
-    <div class="seg">
-      <label>Lang</label>
-      <select id="langSel">
-        <option value="auto">Auto</option>
-        <option value="en">EN</option>
-        <option value="ko">KO</option>
-      </select>
-    </div>
-    <div class="seg">
-      <label>Summarize</label>
-      <select id="modeSel">
-        <option value="hybrid">Hybrid</option>
-        <option value="llm">LLM (best)</option>
-        <option value="fast">Fast</option>
-      </select>
-    </div>
+  <div class="toolbar">
+    <button id="btnRefresh" class="btn">↻ Refresh</button>
+    <button id="btnRunAll" class="btn primary full">Run All (Summary • Sentiment • Reply)</button>
   </div>
 
-  <div class="row">
-    <div class="col">
-      <div class="list" id="emailList"></div>
+  <section class="card">
+    <div class="head">Inbox Preview</div>
+    <div class="body">
+      <div id="emailList"></div>
+      <div id="listEmpty" class="muted" style="margin-top:6px;">No emails loaded yet.</div>
     </div>
-  </div>
+  </section>
 
-  <div class="row">
-    <div class="col">
-      <textarea id="inputText" placeholder="Paste or select email…"></textarea>
-      <div class="actions" style="margin-top:8px">
-        <button id="btnSumm" class="primary">Summarize</button>
-        <button id="btnSent">Sentiment</button>
-        <button id="btnReply">Reply (stream)</button>
-        <button id="toEN" class="ghost">Translate → EN</button>
-        <button id="toKO" class="ghost">Translate → KO</button>
+  <section class="card" style="margin-top:12px;">
+    <div class="head">Selected Email</div>
+    <div class="body">
+      <pre id="original" class="muted" style="max-height:120px; overflow:auto;">Select an email above…</pre>
+
+      <div class="grid">
+        <div class="analysis card">
+          <div class="head">📝 Summary <span id="loadingSummary" class="spinner hidden"></span></div>
+          <div class="body"><pre id="summary"></pre></div>
+        </div>
+
+        <div class="analysis card sentiment">
+          <div class="head">📊 Sentiment <span id="loadingSentiment" class="spinner hidden"></span></div>
+          <div class="body">
+            <div class="row">
+              <span id="sentLabel" class="tag">-</span>
+              <span id="sentScore" class="tag">-</span>
+              <span id="sentCat" class="tag">-</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="analysis card">
+          <div class="head">💬 Suggested Reply <span id="loadingReply" class="spinner hidden"></span></div>
+          <div class="body"><pre id="reply"></pre></div>
+        </div>
       </div>
-      <div class="progress" id="prog"><div class="barin" id="progbar"></div></div>
-    </div>
-  </div>
 
-  <div class="row">
-    <div class="col">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h4 style="margin:6px 0;">Summary</h4>
-        <span id="sentTag" class="tag">sentiment: -</span>
+      <div class="toolbar" style="margin-top:10px;">
+        <button id="btnSummary" class="btn">Summarize</button>
+        <button id="btnSentiment" class="btn">Sentiment</button>
+        <button id="btnReply" class="btn success">Generate Reply</button>
       </div>
-      <div id="outSummary" class="out"></div>
     </div>
-  </div>
+  </section>
 
-  <div class="row">
-    <div class="col">
-      <h4 style="margin:6px 0;">Reply</h4>
-      <div id="outReply" class="out"></div>
+  <section class="card" style="margin-top:12px;">
+    <div class="head">Manual Text Input</div>
+    <div class="body">
+      <textarea id="manualText" placeholder="Paste any email text here…"></textarea>
+      <div class="toolbar" style="margin-top:8px;">
+        <button id="btnUseManual" class="btn full">Use as Selected</button>
+      </div>
     </div>
-  </div>
+  </section>
 
   <script src="popup.js"></script>
 </body>

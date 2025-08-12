@@ -311,7 +311,7 @@ Reply:
             capture_output=True,
             text=True,
             encoding="utf-8",
-            timeout=300,
+            timeout=300
         )
         if proc.returncode != 0:
             print(f"[Gemma Error] {proc.stderr}")
