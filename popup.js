@@ -12,49 +12,75 @@
     sentLabel: $("sentLabel"),
     sentScore: $("sentScore"),
     sentCat: $("sentCat"),
-    spSummary: $("loadingSummary"),
-    spSummaryLlm: $("loadingSummaryLlm"),
-    spSent: $("loadingSentiment"),
-    spReply: $("loadingReply"),
+    spinFast: $("spinSummaryFast"),
+    spinLlm: $("spinSummaryLlm"),
+    spinSent: $("spinSentiment"),
+    spinReply: $("spinReply"),
+    spinToEN: $("spinToEN"),
+    spinToKO: $("spinToKO"),
+    topbar: $("topProgress"),
+    selHint: $("selHint"),
+    toast: $("toast"),
   };
 
   let emails = [];
   let selected = -1;
+  let topBarTimer = null;
 
-  function esc(s = "") {
-    return s.replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
+  // utils
+  const esc = (s="") => s.replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
+  const toggle = (el, on) => el.classList.toggle("hidden", !on);
+  const disableAll = (on) => [
+      "btnRefresh","btnRunAll","btnUseManual",
+      "btnSummaryFast","btnSummaryLlm","btnSentiment","btnReply",
+      "btnToEN","btnToKO","btnCopyReply","copySummaryFast","copySummaryLlm"
+    ].forEach(id => { const b = $(id); if (b) b.disabled = on; });
+
+  function toast(msg, ms=1500){
+    els.toast.textContent = msg || "";
+    els.toast.classList.add("show");
+    setTimeout(()=> els.toast.classList.remove("show"), ms);
   }
 
+  // top progress
+  function topProgress(on){
+    clearInterval(topBarTimer);
+    if(!on){ els.topbar.style.width = "0%"; return; }
+    let w = 0; els.topbar.style.width = "0%";
+    topBarTimer = setInterval(() => {
+      w = (w + 7) % 105;
+      els.topbar.style.width = `${w}%`;
+    }, 110);
+  }
+
+  // load emails
   async function fetchEmails() {
-    disableToolbar(true);
+    disableAll(true); topProgress(true);
     try {
       const res = await fetch(`${baseUrl}/api/emails`);
       const data = await res.json();
       emails = Array.isArray(data) ? data : [];
       renderList();
       if (emails[0]) selectEmail(0);
+      toast("Inbox refreshed");
     } catch (e) {
       console.error(e);
       alert("Failed to load emails from API.");
-    } finally {
-      disableToolbar(false);
-    }
+    } finally { disableAll(false); topProgress(false); }
   }
 
   function renderList() {
     els.list.innerHTML = "";
-    if (!emails.length) {
-      els.listEmpty.style.display = "block";
-      return;
-    }
+    if (!emails.length) { els.listEmpty.style.display = "block"; els.selHint.textContent = "nothing selected"; return; }
     els.listEmpty.style.display = "none";
+
     emails.forEach((item, idx) => {
       const div = document.createElement("div");
-      div.className = "email-item";
+      div.className = "item" + (selected===idx ? " active" : "");
       div.dataset.id = String(idx);
       div.innerHTML = `
         <div class="subj">${esc(item.subject || "(no subject)")}</div>
-        <div class="meta">${esc(item.snippet || "")}</div>
+        <div class="snippet">${esc(item.snippet || "")}</div>
       `;
       div.addEventListener("click", () => selectEmail(idx));
       els.list.appendChild(div);
@@ -65,7 +91,10 @@
     selected = idx;
     const item = emails[idx];
     els.original.textContent = item?.text || "(empty)";
+    els.selHint.textContent = `selected #${idx+1}`;
     resetOutputs();
+    // update list active state
+    [...els.list.querySelectorAll(".item")].forEach((n,i) => n.classList.toggle("active", i===idx));
   }
 
   function resetOutputs() {
@@ -85,41 +114,41 @@
     return t || "";
   }
 
+  // actions
   async function runSummaryFast() {
     const t = getSelectedText(); if (!t) return;
-    toggle(els.spSummary, true);
+    toggle(els.spinFast, true); topProgress(true);
     try {
       const res = await fetch(`${baseUrl}/summarize`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
+        method: "POST", headers: {"Content-Type":"application/json"},
         body: JSON.stringify({ text: t })
       });
       const data = await res.json();
       els.summary.textContent = data.summary || "(no summary)";
-    } finally { toggle(els.spSummary, false); }
+    } catch(e){ alert("Summary (Fast) error: " + e); }
+    finally { toggle(els.spinFast, false); topProgress(false); }
   }
 
   async function runSummaryLlm() {
     const t = getSelectedText(); if (!t) return;
-    toggle(els.spSummaryLlm, true);
+    toggle(els.spinLlm, true); topProgress(true);
     try {
       const res = await fetch(`${baseUrl}/summarize_llm`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
+        method: "POST", headers: {"Content-Type":"application/json"},
         body: JSON.stringify({ text: t })
       });
       const data = await res.json();
       els.summaryLlm.textContent = data.summary || "(no summary)";
-    } finally { toggle(els.spSummaryLlm, false); }
+    } catch(e){ alert("Summary (LLM) error: " + e); }
+    finally { toggle(els.spinLlm, false); topProgress(false); }
   }
 
   async function runSentiment() {
     const t = getSelectedText(); if (!t) return;
-    toggle(els.spSent, true);
+    toggle(els.spinSent, true); topProgress(true);
     try {
       const res = await fetch(`${baseUrl}/sentiment`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
+        method: "POST", headers: {"Content-Type":"application/json"},
         body: JSON.stringify({ text: t })
       });
       const data = await res.json();
@@ -129,41 +158,39 @@
       const wrap = document.querySelector(".analysis.card.sentiment");
       wrap.classList.remove("positive","neutral","negative");
       if (data.mapped_category) wrap.classList.add(data.mapped_category);
-    } finally { toggle(els.spSent, false); }
+    } catch(e){ alert("Sentiment error: " + e); }
+    finally { toggle(els.spinSent, false); topProgress(false); }
   }
 
   async function runReply() {
     const t = getSelectedText(); if (!t) return;
-    toggle(els.spReply, true);
+    toggle(els.spinReply, true); topProgress(true);
     try {
       const res = await fetch(`${baseUrl}/reply`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
+        method: "POST", headers: {"Content-Type":"application/json"},
         body: JSON.stringify({ text: t })
       });
       const data = await res.json();
       els.reply.textContent = data.reply || "(no reply)";
-    } finally { toggle(els.spReply, false); }
+    } catch(e){ alert("Reply error: " + e); }
+    finally { toggle(els.spinReply, false); topProgress(false); }
   }
 
-  async function translateLLM(target_lang) {
+  async function translateLLM(target_lang, spinnerEl) {
     const t = getSelectedText(); if (!t) return;
-    disableToolbar(true);
+    toggle(spinnerEl, true); disableAll(true); topProgress(true);
     try {
       const res = await fetch(`${baseUrl}/translate_llm`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
+        method: "POST", headers: {"Content-Type":"application/json"},
         body: JSON.stringify({ text: t, target_lang })
       });
       const data = await res.json();
       const translated = (data.translated || "").trim();
       if (!translated) return;
 
-      // 선택된 이메일을 번역문으로 대체 (없으면 수동 텍스트 교체)
       if (selected >= 0 && emails[selected]) {
         emails[selected].text = translated;
-        // 스니펫도 업데이트
-        emails[selected].snippet = translated.slice(0, 80).replace(/\n/g, " ");
+        emails[selected].snippet = translated.slice(0,80).replace(/\n/g," ");
         renderList();
         selectEmail(selected);
       } else {
@@ -171,36 +198,37 @@
         els.original.textContent = translated;
       }
       resetOutputs();
-    } catch (e) {
-      alert("Translate error: " + e);
-    } finally {
-      disableToolbar(false);
-    }
+      toast(target_lang === "en" ? "Translated to English" : "한국어로 번역 완료");
+    } catch(e){ alert("Translate error: " + e); }
+    finally { toggle(spinnerEl, false); disableAll(false); topProgress(false); }
   }
 
-  function toggle(el, on) { el.classList.toggle("hidden", !on); }
-  function disableToolbar(on) {
-    ["btnRefresh","btnRunAll","btnSummary","btnSummaryLlm","btnSentiment","btnReply","btnUseManual","btnToEN","btnToKO"]
-      .forEach(id => { const b = $(id); if (b) b.disabled = on; });
+  async function copyText(text, label){
+    if(!text.trim()) return;
+    try { await navigator.clipboard.writeText(text); toast(`${label} copied`); }
+    catch { /* ignore */ }
   }
 
   // buttons
   $("btnRefresh").addEventListener("click", fetchEmails);
-  $("btnSummary").addEventListener("click", runSummaryFast);
-  $("btnSummaryLlm").addEventListener("click", runSummaryLlm);
-  $("btnSentiment").addEventListener("click", runSentiment);
-  $("btnReply").addEventListener("click", runReply);
-  $("btnRunAll").addEventListener("click", async () => {
-    await runSummaryFast(); await runSentiment(); await runReply();
-  });
+  $("btnRunAll").addEventListener("click", async () => { await runSummaryFast(); await runSentiment(); await runReply(); });
   $("btnUseManual").addEventListener("click", () => {
     const t = $("manualText").value || "";
     emails = [{ subject: "Manual Text", snippet: t.slice(0,80).replace(/\n/g," "), text: t }];
-    renderList();
-    selectEmail(0);
+    renderList(); selectEmail(0);
   });
-  $("btnToEN").addEventListener("click", () => translateLLM("en"));
-  $("btnToKO").addEventListener("click", () => translateLLM("ko"));
+
+  $("btnSummaryFast").addEventListener("click", runSummaryFast);
+  $("btnSummaryLlm").addEventListener("click", runSummaryLlm);
+  $("btnSentiment").addEventListener("click", runSentiment);
+  $("btnReply").addEventListener("click", runReply);
+
+  $("btnToEN").addEventListener("click", () => translateLLM("en", els.spinToEN));
+  $("btnToKO").addEventListener("click", () => translateLLM("ko", els.spinToKO));
+
+  $("btnCopyReply").addEventListener("click", () => copyText(els.reply.textContent || "", "Reply"));
+  $("copySummaryFast").addEventListener("click", () => copyText(els.summary.textContent || "", "Fast summary"));
+  $("copySummaryLlm").addEventListener("click", () => copyText(els.summaryLlm.textContent || "", "LLM summary"));
 
   // init
   fetchEmails();

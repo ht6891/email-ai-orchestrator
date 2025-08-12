@@ -17,6 +17,22 @@ try:
 except Exception:
     def remove_signature(x: str) -> str:
         return (x or "").strip()
+    
+# --- SPEED OPTIONS (add near the top of app.py) ---
+import os
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")  # tokenizer 경합 방지
+
+try:
+    import torch
+    torch.set_num_threads(4)    # CPU 쓰레드 캡 (i5-8350U라면 4~6 권장)
+except Exception:
+    pass
+
+# Ollama 설정: 더 작은 모델 + 짧은 출력 + 낮은 temperature
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:4b")  # 설치된 작은 모델로 교체 (예: llama3.2:3b, qwen2:1.5b 등)
+OLLAMA_OPTS  = os.getenv("OLLAMA_OPTS",
+                         "-o num_predict=120 -o temperature=0.2 -o top_p=0.9 -o num_thread=4 -o stop=Reply:")
+# num_predict: 생성 토큰 상한 ↓  / num_thread: CPU 코어에 맞춤
 
 app = Flask(__name__)
 
@@ -207,42 +223,6 @@ def analyze_sentiment(text: str) -> dict:
         return {"label": "5 stars", "score": 0.90, "mapped_category": "positive"}
     return {"label": "3 stars", "score": 0.75, "mapped_category": "neutral"}
 
-# ----------------------------
-# Translation EN <-> KO
-# ----------------------------
-try:
-    trans_en_ko = pipeline("translation", model="Helsinki-NLP/opus-mt-en-ko")
-    print("[translate] en->ko loaded")
-except Exception as e:
-    trans_en_ko = None
-    print("[translate] en->ko FAILED:", e)
-
-try:
-    trans_ko_en = pipeline("translation", model="Helsinki-NLP/opus-mt-ko-en")
-    print("[translate] ko->en loaded")
-except Exception as e:
-    trans_ko_en = None
-    print("[translate] ko->en FAILED:", e)
-
-def translate_text(text: str, target_lang: str) -> str:
-    text = (text or "").strip()
-    if not text:
-        return ""
-    try:
-        if target_lang == "ko":
-            if trans_en_ko:
-                out = trans_en_ko(text[:2000])
-                return out[0]["translation_text"]
-            return text
-        if target_lang == "en":
-            if trans_ko_en:
-                out = trans_ko_en(text[:2000])
-                return out[0]["translation_text"]
-            return text
-        return text
-    except Exception as e:
-        print("[translate] error:", e)
-        return text
 
 # ----------------------------
 # Reply generation (Ollama / stream)
@@ -421,7 +401,7 @@ Preserve key details such as names, dates, times, amounts, and URLs. Keep format
             capture_output=True,
             text=True,
             encoding="utf-8",
-            timeout=120
+            timeout=300
         )
         if proc.returncode != 0:
             return f"⚠️ LLM error: {proc.stderr.strip() or 'unknown error'}"
