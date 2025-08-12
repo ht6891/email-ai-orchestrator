@@ -1,20 +1,22 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8"/>
   <title>Email AI Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <style>
     :root{
-      --bg:#0c1222; --bg2:#0a0f1c;
+      --bg:#0b1220; --bg2:#0a0f1c;
       --panel:#0d1529; --panel2:#0b1222;
       --card:#0e1730; --card2:#0b1326;
-      --text:#e6eaf2; --muted:#9aa3af; --muted2:#7b8492;
-      --border:#1e2b3e; --border2:#213148;
+      --text:#e6eaf2; --muted:#a8b0bd; --muted2:#7b8492;
+      --border:#1f2a3f; --border2:#22324a;
       --accent:#22d3ee; --accent2:#60a5fa;
       --good:#10b981; --warn:#f59e0b; --bad:#ef4444;
-      --shadow: 0 8px 24px rgba(6,10,20,.3);
+      --shadow: 0 10px 28px rgba(6,10,20,.35);
       --radius: 14px;
+      --sidebar:#0a1326;
+      --list:#0c162d;
     }
     *{box-sizing:border-box}
     html,body{margin:0;padding:0}
@@ -22,28 +24,81 @@
       font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Apple SD Gothic Neo","맑은 고딕",Noto Sans,Arial;
       color:var(--text);
       background:
-        radial-gradient(1000px 420px at 65% -10%, rgba(96,165,250,.15), rgba(34,211,238,.08) 30%, transparent 60%),
+        radial-gradient(1000px 420px at 65% -10%, rgba(96,165,250,.12), rgba(34,211,238,.06) 30%, transparent 60%),
         linear-gradient(180deg,var(--bg),var(--bg2));
-      width:980px; max-width:100vw; min-height:620px;
+      min-height:640px;
     }
 
-    /* Header */
+    /* App Shell */
     .topbar{
-      position:sticky; top:0; z-index:10;
+      position:sticky; top:0; z-index:50;
       display:flex; align-items:center; gap:12px; justify-content:space-between;
-      padding:12px 14px; border-bottom:1px solid var(--border);
+      padding:10px 16px; border-bottom:1px solid var(--border);
       background:linear-gradient(180deg,#0f1830,#0b1222);
-      position:relative; z-index:10;
+      backdrop-filter:saturate(1.1);
     }
-    .brand{display:flex; align-items:center; gap:10px; font-weight:800}
+    .brand{display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.2px}
     .logo{display:grid; place-items:center; width:28px; height:28px; border-radius:8px;
       background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#041423; font-weight:900}
     .pill{font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:#cbd5e1;}
+    .top-actions{display:flex; align-items:center; gap:10px}
+    .search{
+      display:flex; align-items:center; gap:8px;
+      background:linear-gradient(180deg,#0c162d,#0a1326);
+      border:1px solid var(--border); border-radius:12px; padding:6px 10px; min-width:320px;
+    }
+    .search input{
+      background:transparent; border:0; outline:none; color:var(--text); flex:1; font:inherit;
+    }
+    .avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
+      background:linear-gradient(135deg,#1e293b,#0b1222); border:1px solid var(--border); font-size:12px; color:#cbd5e1}
+
+    /* Progress line */
+    .progressline{position:absolute; left:0; right:0; bottom:-1px; height:3px; background:#0b1324; overflow:hidden; border-top:1px solid var(--border)}
+    .progressfill{height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .2s}
+
+    /* Layout: sidebar | list | content */
+    .app{
+      display:grid; grid-template-columns: 220px 360px 1fr; gap:0;
+      height: calc(100vh - 56px);
+    }
+    @media (max-width: 1080px){
+      .app{grid-template-columns: 60px 320px 1fr}
+      .nav .label{display:none}
+    }
+    @media (max-width: 860px){
+      .app{grid-template-columns: 1fr}
+      .sidebar, .listpane{display:none}
+    }
+
+    /* Sidebar */
+    .sidebar{
+      background:linear-gradient(180deg,var(--sidebar),#081022);
+      border-right:1px solid var(--border);
+      padding:12px 10px;
+    }
+    .nav{display:flex; flex-direction:column; gap:6px}
+    .nav a{
+      display:flex; align-items:center; gap:10px; padding:8px 10px;
+      border-radius:10px; color:#dbeafe; text-decoration:none;
+      border:1px solid transparent;
+    }
+    .nav a:hover{background:#0f1a33; border-color:#172643}
+    .nav a.active{background:linear-gradient(180deg,#152546,#0e1a33); border-color:#243a66}
+    .nav .icon{width:20px; text-align:center; opacity:.9}
+
+    /* List pane */
+    .listpane{
+      background:linear-gradient(180deg,var(--list),#0a142a);
+      border-right:1px solid var(--border);
+      display:flex; flex-direction:column; min-width:0;
+    }
+    .list-head{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border)}
     .toolbar{display:flex; gap:8px; flex-wrap:wrap}
     .btn{
       appearance:none; border:1px solid var(--border); border-radius:10px;
       background:linear-gradient(180deg,#16243a,#0b1326);
-      color:var(--text); padding:8px 10px; font-size:12px; font-weight:600; cursor:pointer;
+      color:var(--text); padding:7px 10px; font-size:12px; font-weight:600; cursor:pointer;
       transition:.12s; display:inline-flex; align-items:center; gap:6px;
     }
     .btn:hover{border-color:#2a3b56; box-shadow:var(--shadow); transform:translateY(-1px)}
@@ -51,169 +106,175 @@
     .btn.success{background:linear-gradient(180deg,#064e3b,#022c22); border-color:#0b6b53;}
     .btn.ghost{background:transparent}
 
-    /* Top progress line */
-    .progressline{position:absolute; left:0; right:0; bottom:-1px; height:3px; background:#0b1324; overflow:hidden; border-top:1px solid var(--border)}
-    .progressfill{height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .2s}
-
-    /* Layout */
-    .wrap{display:grid; grid-template-columns: 36% 64%; gap:12px; padding:12px}
-    @media (max-width: 880px){ .wrap{grid-template-columns:1fr} }
-
-    .card{
-      background:linear-gradient(180deg,var(--panel),var(--panel2));
-      border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;
+    .list{display:flex; flex-direction:column; gap:6px; overflow:auto; padding:10px; min-height:0}
+    .item{
+      border:1px solid var(--border); border-radius:12px; padding:10px; cursor:pointer;
+      background:linear-gradient(180deg,#0f1b34,#0b1326);
+      transition:.12s; display:grid; grid-template-columns: 1fr auto; grid-template-rows:auto auto; row-gap:2px;
     }
-    .card .head{
+    .item:hover{border-color:#304362; box-shadow:var(--shadow)}
+    .item.active{outline:2px solid #254372}
+    .subj{grid-column:1 / span 2; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .snippet{font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .meta{font-size:12px; color:var(--muted2); text-align:right}
+
+    .list-empty{color:var(--muted2); padding:10px;}
+
+    /* Content pane */
+    .content{display:flex; flex-direction:column; min-width:0}
+    .read-head{
+      display:flex; align-items:flex-start; justify-content:space-between;
+      padding:14px 16px; border-bottom:1px solid var(--border);
+      background:linear-gradient(180deg,var(--card),var(--card2));
+    }
+    .subject-line{font-size:16px; font-weight:800; line-height:1.2}
+    .meta-line{font-size:12px; color:var(--muted); margin-top:4px}
+    .actions{display:flex; flex-wrap:wrap; gap:6px}
+    .read-body{padding:16px; display:flex; flex-direction:column; gap:12px; overflow:auto; min-height:0}
+    .orig{
+      max-height:220px; overflow:auto; border-radius:12px; border:1px solid var(--border);
+      padding:10px; background:#0b1222; color:#cbd5e1;
+    }
+    pre{white-space:pre-wrap; margin:0}
+
+    .grid{display:grid; gap:10px; grid-template-columns:1fr 1fr}
+    @media (max-width: 1080px){ .grid{grid-template-columns:1fr} }
+
+    .analysis{border-left:3px solid #274066; border-radius:12px; overflow:hidden}
+    .analysis .head{
       display:flex; align-items:center; justify-content:space-between;
       padding:10px 12px; border-bottom:1px solid var(--border2);
       background:linear-gradient(180deg,var(--card),var(--card2)); color:#dbeafe; font-weight:700;
     }
-    .card .body{padding:12px}
+    .analysis .body{padding:12px}
 
-    /* Left: Inbox */
-    .list{display:flex; flex-direction:column; gap:8px; max-height:520px; overflow:auto}
-    .item{
-      border:1px solid var(--border); border-radius:12px; padding:10px; cursor:pointer;
-      background:linear-gradient(180deg,#0f1b34,#0b1326);
-      transition:.12s;
-    }
-    .item:hover{border-color:#304362; box-shadow:var(--shadow)}
-    .item.active{outline:2px solid #254372}
-    .subj{font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-    .snippet{font-size:12px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-
-    /* Right: Main */
-    .orig{
-      max-height:150px; overflow:auto; border-radius:12px; border:1px solid var(--border);
-      padding:10px; background:#0b1222; color:#cbd5e1;
-    }
-    .panel .section .sec-body{padding:10px; overflow:auto}
-    pre{white-space:pre-wrap; margin:0}
-
-    .grid{display:grid; gap:10px; grid-template-columns:1fr 1fr}
-    @media (max-width: 880px){ .grid{grid-template-columns:1fr} }
-
-    .analysis{border-left:3px solid #274066}
     .sentiment.positive{border-left-color:var(--good)}
     .sentiment.neutral{border-left-color:var(--warn)}
     .sentiment.negative{border-left-color:var(--bad)}
 
     .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
     .tag{font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:#cbd5e1}
-    .sentiment.positive .section{border-left:3px solid var(--good)}
-    .sentiment.neutral .section{border-left:3px solid var(--warn)}
-    .sentiment.negative .section{border-left:3px solid var(--bad)}
+    .muted{color:var(--muted)} .muted2{color:var(--muted2)}
+    textarea{width:100%; min-height:120px; resize:vertical; border-radius:12px; border:1px solid var(--border);
+      background:#0b1222; color:#fff; padding:10px; font:inherit}
 
-    /* spinners & toast */
+    /* Tiny spinner */
     .spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.15);border-top-color:var(--accent);animation:spin .7s linear infinite;display:inline-block;vertical-align:-2px}
     @keyframes spin{to{transform:rotate(360deg)}} .hidden{display:none}
 
-    /* Copy buttons area */
-    .head-actions{display:flex; gap:6px; align-items:center}
-    .chip{font-size:11px; padding:2px 8px; border-radius:999px; border:1px dashed var(--border2); color:#b7c2d1}
-
     /* Toast */
     .toast{
-      position:fixed; right:14px; bottom:14px; z-index:20; min-width:220px;
+      position:fixed; right:14px; bottom:14px; z-index:200; min-width:220px;
       background:linear-gradient(180deg,#0b162c,#0b1222); border:1px solid var(--border);
       color:var(--text); padding:10px 12px; border-radius:12px; box-shadow:var(--shadow); opacity:0; transform:translateY(8px);
       transition:opacity .15s, transform .15s;
     }
     .toast.show{opacity:1; transform:translateY(0)}
-    textarea{width:100%; min-height:120px; resize:vertical; border-radius:12px; border:1px solid var(--border); background:#0b1222; color:#fff; padding:10px; font:inherit}
   </style>
 </head>
 <body>
+  <!-- Topbar -->
   <div class="topbar">
     <div class="brand">
       <div class="logo">✉️</div>
       <div>Email AI Assistant</div>
       <span class="pill">local</span>
     </div>
-    <div class="toolbar">
-      <button id="btnRefresh" class="btn">↻ Refresh</button>
-      <button id="btnRunAll" class="btn primary">Run All</button>
+    <div class="top-actions" style="flex:1; max-width:820px;">
+      <div class="search" style="flex:1;">
+        <span>🔎</span>
+        <input id="searchBox" type="text" placeholder="Search mail (subject, snippet, body)…"/>
+      </div>
+      <div class="avatar">HT</div>
     </div>
-    <div class="avatar">HT</div>
     <div class="progressline"><div id="topProgress" class="progressfill"></div></div>
   </div>
 
-  <div class="wrap">
-    <!-- LEFT: Inbox -->
-    <section class="card">
-      <div class="head">Inbox Preview</div>
-      <div class="body">
-        <div id="emailList" class="list"></div>
-        <div id="listEmpty" class="muted2" style="margin-top:6px;">No emails loaded yet.</div>
+  <!-- App layout -->
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <nav class="nav">
+        <a class="active" href="#"><span class="icon">📥</span><span class="label">Inbox</span></a>
+        <a href="#"><span class="icon">⭐</span><span class="label">Starred</span></a>
+        <a href="#"><span class="icon">📝</span><span class="label">Drafts</span></a>
+        <a href="#"><span class="icon">🌐</span><span class="label">Translate</span></a>
+        <a href="#"><span class="icon">⚙️</span><span class="label">Settings</span></a>
+      </nav>
+    </aside>
 
-        <div style="margin-top:10px">
-          <label class="muted2" style="display:block; margin-bottom:6px;">Manual Text</label>
-          <textarea id="manualText" placeholder="Or paste any email text here…"></textarea>
-          <div class="row" style="margin-top:8px;">
-            <button id="btnUseManual" class="btn">Use as Selected</button>
-          </div>
+    <!-- List pane -->
+    <section class="listpane">
+      <div class="list-head">
+        <div class="toolbar">
+          <button id="btnRefresh" class="btn">↻ Refresh</button>
+          <button id="btnRunAll" class="btn primary">Run All</button>
+        </div>
+      </div>
+      <div id="emailList" class="list"></div>
+      <div id="listEmpty" class="list-empty">No emails loaded yet.</div>
+
+      <div style="padding:10px; border-top:1px solid var(--border)">
+        <label class="muted2" style="display:block; margin-bottom:6px;">Manual Text</label>
+        <textarea id="manualText" placeholder="Or paste any email text here…"></textarea>
+        <div class="row" style="margin-top:8px;">
+          <button id="btnUseManual" class="btn">Use as Selected</button>
         </div>
       </div>
     </section>
 
-    <!-- RIGHT: Main -->
-    <section class="card">
-      <div class="head">
-        <span>Selected Email</span>
-        <span class="chip" id="selHint">nothing selected</span>
+    <!-- Content pane -->
+    <section class="content">
+      <div class="read-head">
+        <div>
+          <div class="subject-line" id="subjectLine">Select an email…</div>
+          <div class="meta-line" id="metaLine">—</div>
+        </div>
+        <div class="actions">
+          <button id="btnSummaryFast" class="btn">📝 Summary (Fast)</button>
+          <span id="spinSummaryFast" class="spinner hidden"></span>
+
+          <button id="btnSummaryLlm" class="btn">🧠 Summary (LLM)</button>
+          <span id="spinSummaryLlm" class="spinner hidden"></span>
+
+          <button id="btnSentiment" class="btn">📊 Sentiment</button>
+          <span id="spinSentiment" class="spinner hidden"></span>
+
+          <button id="btnReply" class="btn success">💬 Reply</button>
+          <span id="spinReply" class="spinner hidden"></span>
+
+          <button id="btnToEN" class="btn ghost" title="Translate to English">→ EN</button>
+          <span id="spinToEN" class="spinner hidden"></span>
+          <button id="btnToKO" class="btn ghost" title="Translate to Korean">→ KO</button>
+          <span id="spinToKO" class="spinner hidden"></span>
+        </div>
       </div>
-      <div class="body">
+
+      <div class="read-body">
         <div class="orig"><pre id="original" class="muted">Select an email on the left…</pre></div>
 
-        <div class="row" style="margin:12px 0 8px;">
-          <div class="row" style="gap:6px">
-            <button id="btnSummaryFast" class="btn">Summary (Fast)</button>
-            <span id="spinSummaryFast" class="spinner hidden"></span>
-
-            <button id="btnSummaryLlm" class="btn">Summary (LLM)</button>
-            <span id="spinSummaryLlm" class="spinner hidden"></span>
-
-            <button id="btnSentiment" class="btn">Sentiment</button>
-            <span id="spinSentiment" class="spinner hidden"></span>
-
-            <button id="btnReply" class="btn success">Reply</button>
-            <span id="spinReply" class="spinner hidden"></span>
-          </div>
-
-          <div style="flex:1"></div>
-
-          <div class="row">
-            <button id="btnToEN" class="btn ghost" title="Translate to English">→ EN</button>
-            <span id="spinToEN" class="spinner hidden"></span>
-            <button id="btnToKO" class="btn ghost" title="Translate to Korean">→ KO</button>
-            <span id="spinToKO" class="spinner hidden"></span>
-          </div>
-        </div>
-
-        <div class="grid" style="margin-top:8px;">
-          <div class="analysis card">
+        <div class="grid">
+          <div class="analysis">
             <div class="head">
               <span>📝 Summary (Fast)</span>
-              <div class="head-actions">
+              <div class="row">
                 <button id="copySummaryFast" class="btn ghost" title="Copy">Copy</button>
               </div>
             </div>
-            <div class="sec-body"><pre id="summary"></pre></div>
+            <div class="body"><pre id="summary"></pre></div>
           </div>
-        </div>
 
-          <div class="analysis card">
+          <div class="analysis">
             <div class="head">
               <span>🧠 Summary (LLM)</span>
-              <div class="head-actions">
+              <div class="row">
                 <button id="copySummaryLlm" class="btn ghost" title="Copy">Copy</button>
               </div>
             </div>
-            <div class="sec-body"><pre id="summaryLlm"></pre></div>
+            <div class="body"><pre id="summaryLlm"></pre></div>
           </div>
-        </div>
 
-          <div class="analysis card sentiment">
+          <div class="analysis sentiment">
             <div class="head">📊 Sentiment</div>
             <div class="body">
               <div class="row">
@@ -224,14 +285,14 @@
             </div>
           </div>
 
-          <div class="analysis card">
+          <div class="analysis">
             <div class="head">
               <span>💬 Suggested Reply</span>
-              <div class="head-actions">
+              <div class="row">
                 <button id="btnCopyReply" class="btn ghost" title="Copy reply">Copy</button>
               </div>
             </div>
-            <div class="sec-body"><pre id="reply"></pre></div>
+            <div class="body"><pre id="reply"></pre></div>
           </div>
         </div>
       </div>

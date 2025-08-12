@@ -19,11 +19,14 @@
     spinToEN: $("spinToEN"),
     spinToKO: $("spinToKO"),
     topbar: $("topProgress"),
-    selHint: $("selHint"),
     toast: $("toast"),
+    subjectLine: $("subjectLine"),
+    metaLine: $("metaLine"),
+    search: $("searchBox"),
   };
 
   let emails = [];
+  let filtered = [];
   let selected = -1;
   let topBarTimer = null;
 
@@ -45,11 +48,11 @@
   // top progress
   function topProgress(on){
     clearInterval(topBarTimer);
-    if(!on){ if(els.topbar) els.topbar.style.width = "0%"; return; }
-    let w = 0; if(els.topbar) els.topbar.style.width = "0%";
+    if(!on){ els.topbar.style.width = "0%"; return; }
+    let w = 0; els.topbar.style.width = "0%";
     topBarTimer = setInterval(() => {
       w = (w + 7) % 105;
-      if(els.topbar) els.topbar.style.width = `${w}%`;
+      els.topbar.style.width = `${w}%`;
     }, 110);
   }
 
@@ -60,8 +63,9 @@
       const res = await fetch(`${baseUrl}/api/emails`);
       const data = await res.json();
       emails = Array.isArray(data) ? data : [];
+      filtered = emails.slice();
       renderList();
-      if (emails[0]) selectEmail(0);
+      if (filtered[0]) selectEmail(0);
       toast("Inbox refreshed");
     } catch (e) {
       console.error(e);
@@ -69,18 +73,36 @@
     } finally { disableAll(false); topProgress(false); }
   }
 
+  function formatDate(dStr){
+    try {
+      const d = new Date(dStr);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleDateString(undefined, { month:"short", day:"numeric" });
+    } catch { return ""; }
+  }
+
   function renderList() {
     els.list.innerHTML = "";
-    if (!emails.length) { els.listEmpty.style.display = "block"; els.selHint.textContent = "nothing selected"; return; }
+    if (!filtered.length) {
+      els.listEmpty.style.display = "block";
+      els.subjectLine.textContent = "No results";
+      els.metaLine.textContent = "—";
+      selected = -1;
+      els.original.textContent = "";
+      return;
+    }
     els.listEmpty.style.display = "none";
 
-    emails.forEach((item, idx) => {
+    filtered.forEach((item, idx) => {
       const div = document.createElement("div");
       div.className = "item" + (selected===idx ? " active" : "");
       div.dataset.id = String(idx);
+      const from = item.from || item.sender || "";
+      const date = formatDate(item.date || item.internalDate);
       div.innerHTML = `
         <div class="subj">${esc(item.subject || "(no subject)")}</div>
-        <div class="snippet">${esc(item.snippet || "")}</div>
+        <div class="snippet">${esc(from ? from + " · " : "")}${esc(item.snippet || "")}</div>
+        <div class="meta">${esc(date)}</div>
       `;
       div.addEventListener("click", () => selectEmail(idx));
       els.list.appendChild(div);
@@ -89,9 +111,12 @@
 
   function selectEmail(idx) {
     selected = idx;
-    const item = emails[idx];
+    const item = filtered[idx];
     els.original.textContent = item?.text || "(empty)";
-    els.selHint.textContent = `selected #${idx+1}`;
+    els.subjectLine.textContent = item?.subject || "(no subject)";
+    const from = item?.from || item?.sender || "unknown";
+    const date = item?.date ? new Date(item.date).toLocaleString() : "";
+    els.metaLine.textContent = `${from}${date ? " • " + date : ""}`;
     resetOutputs();
     // update list active state
     [...els.list.querySelectorAll(".item")].forEach((n,i) => n.classList.toggle("active", i===idx));
@@ -104,12 +129,12 @@
     els.sentLabel.textContent = "-";
     els.sentScore.textContent = "-";
     els.sentCat.textContent = "-";
-    const wrap = document.querySelector(".analysis.card.sentiment");
+    const wrap = document.querySelector(".analysis.sentiment");
     wrap.classList.remove("positive","neutral","negative");
   }
 
   function getSelectedText() {
-    if (selected >= 0 && emails[selected]?.text) return emails[selected].text;
+    if (selected >= 0 && filtered[selected]?.text) return filtered[selected].text;
     const t = ($("manualText").value || "").trim();
     return t || "";
   }
@@ -125,7 +150,6 @@
       });
       const data = await res.json();
       els.summary.textContent = data.summary || "(no summary)";
-      activateTab("panel-summary-fast");
     } catch(e){ alert("Summary (Fast) error: " + e); }
     finally { toggle(els.spinFast, false); topProgress(false); }
   }
@@ -140,7 +164,6 @@
       });
       const data = await res.json();
       els.summaryLlm.textContent = data.summary || "(no summary)";
-      activateTab("panel-summary-llm");
     } catch(e){ alert("Summary (LLM) error: " + e); }
     finally { toggle(els.spinLlm, false); topProgress(false); }
   }
@@ -157,10 +180,9 @@
       els.sentLabel.textContent = data.label || "-";
       els.sentScore.textContent = typeof data.score === "number" ? data.score.toFixed(2) : "-";
       els.sentCat.textContent = data.mapped_category || "-";
-      const wrap = document.querySelector(".analysis.card.sentiment");
+      const wrap = document.querySelector(".analysis.sentiment");
       wrap.classList.remove("positive","neutral","negative");
       if (data.mapped_category) wrap.classList.add(data.mapped_category);
-      activateTab("panel-sentiment");
     } catch(e){ alert("Sentiment error: " + e); }
     finally { toggle(els.spinSent, false); topProgress(false); }
   }
@@ -175,7 +197,6 @@
       });
       const data = await res.json();
       els.reply.textContent = data.reply || "(no reply)";
-      activateTab("panel-reply");
     } catch(e){ alert("Reply error: " + e); }
     finally { toggle(els.spinReply, false); topProgress(false); }
   }
@@ -192,9 +213,12 @@
       const translated = (data.translated || "").trim();
       if (!translated) return;
 
-      if (selected >= 0 && emails[selected]) {
-        emails[selected].text = translated;
-        emails[selected].snippet = translated.slice(0,80).replace(/\n/g," ");
+      // update data in-place for selected item
+      if (selected >= 0 && filtered[selected]) {
+        const globalIndex = emails.indexOf(filtered[selected]);
+        const patch = { text: translated, snippet: translated.slice(0,80).replace(/\n/g," ") };
+        Object.assign(filtered[selected], patch);
+        if (globalIndex >= 0) Object.assign(emails[globalIndex], patch);
         renderList();
         selectEmail(selected);
       } else {
@@ -213,13 +237,25 @@
     catch { /* ignore */ }
   }
 
+  // search filter
+  function applyFilter() {
+    const q = (els.search.value || "").toLowerCase();
+    if (!q) { filtered = emails.slice(); renderList(); return; }
+    filtered = emails.filter(e => {
+      const hay = `${e.subject||""}\n${e.snippet||""}\n${e.text||""}`.toLowerCase();
+      return hay.includes(q);
+    });
+    selected = -1;
+    renderList();
+  }
+
   // buttons
   $("btnRefresh").addEventListener("click", fetchEmails);
   $("btnRunAll").addEventListener("click", async () => { await runSummaryFast(); await runSentiment(); await runReply(); });
-
   $("btnUseManual").addEventListener("click", () => {
     const t = $("manualText").value || "";
     emails = [{ subject: "Manual Text", snippet: t.slice(0,80).replace(/\n/g," "), text: t }];
+    filtered = emails.slice();
     renderList(); selectEmail(0);
   });
 
@@ -234,6 +270,8 @@
   $("btnCopyReply").addEventListener("click", () => copyText(els.reply.textContent || "", "Reply"));
   $("copySummaryFast").addEventListener("click", () => copyText(els.summary.textContent || "", "Fast summary"));
   $("copySummaryLlm").addEventListener("click", () => copyText(els.summaryLlm.textContent || "", "LLM summary"));
+
+  els.search.addEventListener("input", applyFilter);
 
   // init
   fetchEmails();
