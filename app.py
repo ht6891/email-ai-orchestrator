@@ -2,65 +2,155 @@
 import sys
 sys.dont_write_bytecode = True
 
-from flask import Flask, request, jsonify
-app = Flask(__name__)
+import re
+import time
+import shlex
+import subprocess
+from typing import List
+
+from flask import Flask, request, jsonify, Response, stream_with_context
 from transformers import pipeline
-from email_cleaner import remove_signature
-import subprocess, shlex, re
+
+# (선택) 내장 시그니처 제거기 사용 중이면 유지
+try:
+    from email_cleaner import remove_signature
+except Exception:
+    def remove_signature(x: str) -> str:
+        return (x or "").strip()
+
+app = Flask(__name__)
 
 # ----------------------------
-# Summarization (EN/KR router)
+# Summarization models (EN / KO)
 # ----------------------------
-EN_SUM_MODEL = "philschmid/bart-large-cnn-samsum"          # 영어 대화/이메일 요약
-KO_SUM_MODEL = "csebuetnlp/mT5_multilingual_XLSum"         # 다국어 요약(XLSum, ko 포함)
+EN_SUM_MODEL = "philschmid/bart-large-cnn-samsum"          # 영어 대화/메일 요약
+KO_SUM_MODEL = "csebuetnlp/mT5_multilingual_XLSum"         # 다국어 요약(ko 포함)
 
-try:
-    en_summarizer = pipeline("summarization", model=EN_SUM_MODEL)
-    print("[summarize] EN model loaded.")
-except Exception as e:
-    en_summarizer = None
-    print("[summarize] EN model load failed:", e)
+def _load_pipe(task, model):
+    try:
+        p = pipeline(task, model=model)
+        print(f"[load] {task} <- {model}")
+        return p
+    except Exception as e:
+        print(f"[load] FAILED: {task} <- {model} :: {e}")
+        return None
 
-try:
-    ko_summarizer = pipeline("summarization", model=KO_SUM_MODEL)
-    print("[summarize] KO model loaded.")
-except Exception as e:
-    ko_summarizer = None
-    print("[summarize] KO model load failed:", e)
+en_summarizer = _load_pipe("summarization", EN_SUM_MODEL)
+ko_summarizer = _load_pipe("summarization", KO_SUM_MODEL)
 
-def _fallback_extractive(text: str, max_sent: int = 2) -> str:
+# ----------------------------
+# Summarization helpers
+# ----------------------------
+def _is_korean(text: str) -> bool:
+    return bool(re.search(r"[가-힣]", text or ""))
+
+def _fallback_extractive(text: str, max_sent=2) -> str:
     sents = re.split(r'(?<=[\.\?\!])\s+', (text or "").strip())
     sents = [s.strip() for s in sents if s.strip()]
     return " ".join(sents[:max_sent]) if sents else (text or "").strip()
 
-def _is_korean(text: str) -> bool:
-    return bool(re.search(r"[가-힣]", text or ""))
+def _safe_model_max(pipe, default_cap: int) -> int:
+    try:
+        ml = getattr(pipe, "tokenizer", None).model_max_length
+        if isinstance(ml, int) and ml < 100000:
+            return ml
+    except Exception:
+        pass
+    return default_cap
 
-def summarize_text(text: str, lang: str = "auto") -> str:
-    if not text or not text.strip():
+def _chunk_by_tokens(text: str, tokenizer, max_tokens: int, overlap: int = 50) -> List[str]:
+    ids = tokenizer.encode(text, add_special_tokens=False)
+    if not ids:
+        return []
+    step = max(1, max_tokens - overlap)
+    chunks = []
+    for i in range(0, len(ids), step):
+        piece = ids[i:i + max_tokens]
+        chunk = tokenizer.decode(piece, skip_special_tokens=True)
+        if chunk.strip():
+            chunks.append(chunk.strip())
+        if i + max_tokens >= len(ids):
+            break
+    return chunks
+
+def _summarize_once(pipe, text: str, *, max_len: int, min_len: int) -> str:
+    out = pipe(text, max_length=max_len, min_length=min_len, do_sample=False, truncation=True)
+    return (out[0]["summary_text"] or "").strip()
+
+def summarize_text(text: str, lang: str = "auto", mode: str = "hybrid") -> str:
+    """
+    lang: auto|en|ko
+    mode: hybrid|llm|fast  (이 값은 길이/속도 튜닝용 힌트로만 사용)
+    """
+    raw = (text or "").strip()
+    if not raw:
         return ""
-    raw = text.strip().replace("\n", " ")[:1200]
+
+    # 언어 결정
+    use_ko = (lang == "ko") or (lang == "auto" and _is_korean(raw))
+    pipe = ko_summarizer if use_ko else en_summarizer
+    if pipe is None:
+        return _fallback_extractive(raw)
+
+    # 모델 별 입력 한도
+    default_cap = 512 if use_ko else 1024
+    max_in = _safe_model_max(pipe, default_cap)
+    max_chunk_tokens = max(128, min(max_in - 32, default_cap - 32))
+
+    # 모드별 요약 길이(경험치 기반 대략)
+    if mode == "fast":
+        first_pass_max = 45 if use_ko else 48
+        first_pass_min = 10
+        final_max = 55 if use_ko else 58
+        final_min = 14
+    elif mode == "llm":
+        first_pass_max = 70 if use_ko else 68
+        first_pass_min = 18
+        final_max = 80 if use_ko else 75
+        final_min = 20
+    else:  # hybrid(기본)
+        first_pass_max = 55 if use_ko else 58
+        first_pass_min = 14
+        final_max = 68 if use_ko else 65
+        final_min = 18
 
     try:
-        # 강제 언어
-        if lang == "ko" and ko_summarizer:
-            out = ko_summarizer(f"summarize: {raw}", max_length=70, min_length=18, do_sample=False)
-            return out[0]["summary_text"].strip()
-        if lang == "en" and en_summarizer:
-            out = en_summarizer(f"Summarize the following email in 1–2 sentences, concise and specific:\n{raw}",
-                                max_length=65, min_length=18, do_sample=False)
-            return out[0]["summary_text"].strip()
+        # 토큰 분할
+        chunks = _chunk_by_tokens(raw, pipe.tokenizer, max_chunk_tokens, overlap=50)
+        if not chunks:
+            return _fallback_extractive(raw)
 
-        # 자동 판단
-        if _is_korean(raw) and ko_summarizer:
-            out = ko_summarizer(f"summarize: {raw}", max_length=70, min_length=18, do_sample=False)
-            return out[0]["summary_text"].strip()
-        if en_summarizer:
-            out = en_summarizer(f"Summarize the following email in 1–2 sentences, concise and specific:\n{raw}",
-                                max_length=65, min_length=18, do_sample=False)
-            return out[0]["summary_text"].strip()
+        # 조각이 1개면 단일 요약
+        if len(chunks) == 1:
+            return _summarize_once(pipe, chunks[0], max_len=final_max, min_len=final_min)
 
-        return _fallback_extractive(raw)
+        # 1차: 각 조각 요약
+        part_sums = []
+        for c in chunks:
+            try:
+                s = _summarize_once(pipe, c, max_len=first_pass_max, min_len=first_pass_min)
+            except Exception:
+                s = _fallback_extractive(c, max_sent=1)
+            if s:
+                part_sums.append(s)
+
+        combined = " ".join(part_sums)
+
+        # 2차: 합본이 너무 길면 다시 축약
+        if len(part_sums) > 2 or len(combined) > 1500:
+            comb_chunks = _chunk_by_tokens(combined, pipe.tokenizer, max_chunk_tokens, overlap=20)
+            comb_sums = []
+            for cc in comb_chunks:
+                try:
+                    comb_sums.append(_summarize_once(pipe, cc, max_len=first_pass_max, min_len=first_pass_min))
+                except Exception:
+                    comb_sums.append(_fallback_extractive(cc, max_sent=1))
+            combined = " ".join([s for s in comb_sums if s.strip()])
+
+        # 최종 정제
+        final = _summarize_once(pipe, combined, max_len=final_max, min_len=final_min)
+        return final or _fallback_extractive(raw)
+
     except Exception as e:
         print("[summarize] error -> fallback:", e)
         return _fallback_extractive(raw)
@@ -69,14 +159,11 @@ def summarize_text(text: str, lang: str = "auto") -> str:
 # Sentiment (multilingual + rules)
 # ----------------------------
 try:
-    sentiment_pipe = pipeline(
-        "sentiment-analysis",
-        model="cardiffnlp/twitter-xlm-roberta-base-sentiment"  # multilingual
-    )
-    print("[sentiment] using xlm-roberta model")
+    sentiment_pipe = pipeline("sentiment-analysis", model="cardiffnlp/twitter-xlm-roberta-base-sentiment")
+    print("[sentiment] xlm-roberta loaded")
 except Exception as e:
     sentiment_pipe = None
-    print("[sentiment] fallback to rules only:", e)
+    print("[sentiment] fallback rules only:", e)
 
 NEG_PATTERNS = [
     r"\bnot (working|able|available)\b",
@@ -85,11 +172,10 @@ NEG_PATTERNS = [
     r"\burgent\b",
     r"\bissue(s)?\b",
     r"\bproblem(s)?\b",
-    r"\bblocked\b"
+    r"\bblocked\b",
 ]
 POS_KEYWORDS = {
-    "thanks", "thank you", "appreciate", "great", "resolved", "fixed",
-    "awesome", "good news", "well done"
+    "thanks", "thank you", "appreciate", "great", "resolved", "fixed", "awesome", "good news", "well done"
 }
 
 def analyze_sentiment(text: str) -> dict:
@@ -101,7 +187,7 @@ def analyze_sentiment(text: str) -> dict:
     if sentiment_pipe:
         try:
             res = sentiment_pipe(t[:512])[0]
-            raw_label = res["label"].lower()
+            raw_label = (res["label"] or "").lower()
             score = float(res["score"])
             mapped = "positive" if "positive" in raw_label else ("negative" if "negative" in raw_label else "neutral")
 
@@ -113,7 +199,7 @@ def analyze_sentiment(text: str) -> dict:
             star_map = {"positive": "5 stars", "neutral": "3 stars", "negative": "1 star"}
             return {"label": star_map[mapped], "score": round(score, 2), "mapped_category": mapped}
         except Exception as e:
-            print("[sentiment] model error, fallback to rules:", e)
+            print("[sentiment] model error -> rules:", e)
 
     if neg_hits > 0:
         return {"label": "1 star", "score": 0.85, "mapped_category": "negative"}
@@ -129,40 +215,82 @@ try:
     print("[translate] en->ko loaded")
 except Exception as e:
     trans_en_ko = None
-    print("[translate] en->ko load failed:", e)
+    print("[translate] en->ko FAILED:", e)
 
 try:
     trans_ko_en = pipeline("translation", model="Helsinki-NLP/opus-mt-ko-en")
     print("[translate] ko->en loaded")
 except Exception as e:
     trans_ko_en = None
-    print("[translate] ko->en load failed:", e)
+    print("[translate] ko->en FAILED:", e)
 
-def translate_text(text: str, target_lang: str):
+def translate_text(text: str, target_lang: str) -> str:
     text = (text or "").strip()
     if not text:
         return ""
     try:
         if target_lang == "ko":
             if trans_en_ko:
-                out = trans_en_ko(text[:1000])
+                out = trans_en_ko(text[:2000])
                 return out[0]["translation_text"]
-            # 대충 fallback
             return text
-        elif target_lang == "en":
+        if target_lang == "en":
             if trans_ko_en:
-                out = trans_ko_en(text[:1000])
+                out = trans_ko_en(text[:2000])
                 return out[0]["translation_text"]
             return text
-        else:
-            return text
+        return text
     except Exception as e:
         print("[translate] error:", e)
         return text
 
 # ----------------------------
-# Reply (Gemma) with language control
+# Reply generation (Ollama / stream)
 # ----------------------------
+ANSI_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+
+def _strip_ansi(s: str) -> str:
+    return ANSI_RE.sub("", s)
+
+def _ollama_stream(prompt: str):
+    """
+    ollama를 라인/청크 단위로 읽어서 SSE로 전달.
+    """
+    cmd = "ollama run gemma3:4b"
+    proc = subprocess.Popen(
+        shlex.split(cmd),
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        bufsize=1,
+    )
+    try:
+        proc.stdin.write(prompt)
+        proc.stdin.close()
+
+        last_ping = time.time()
+        for line in proc.stdout:
+            chunk = _strip_ansi(line.rstrip("\r\n"))
+            if chunk:
+                yield f"data: {chunk}\n\n"
+            # 3초마다 하트비트
+            now = time.time()
+            if now - last_ping > 3:
+                yield "event: ping\ndata: keepalive\n\n"
+                last_ping = now
+
+        proc.wait(timeout=300)
+        yield "event: done\ndata: [DONE]\n\n"
+    except Exception as e:
+        yield f"event: error\ndata: {str(e)}\n\n"
+    finally:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
 def generate_reply_with_gemma3(prompt: str, lang: str = "en") -> str:
     lang_instruction = "Reply in Korean." if lang == "ko" else "Reply in English."
     refined_prompt = f"""You are an assistant that writes polite, professional email replies.
@@ -183,12 +311,12 @@ Reply:
             capture_output=True,
             text=True,
             encoding="utf-8",
-            timeout=300
+            timeout=300,
         )
         if proc.returncode != 0:
             print(f"[Gemma Error] {proc.stderr}")
             return "⚠️ Error generating reply. Please try again."
-        out = (proc.stdout or "").strip()
+        out = _strip_ansi((proc.stdout or "").strip())
         if "Reply:" in out:
             out = out.split("Reply:", 1)[-1].strip()
         if out.lower().startswith("please provide"):
@@ -207,32 +335,52 @@ def summarize_endpoint():
     data = (request.json or {})
     text = (data.get("text") or "").strip()
     lang = (data.get("lang") or "auto").lower()
-    return jsonify({"summary": summarize_text(text, lang)})
+    mode = (data.get("mode") or "hybrid").lower()
+    cleaned = remove_signature(text)
+    return jsonify({"summary": summarize_text(cleaned, lang, mode)})
 
 @app.route("/sentiment", methods=["POST"])
 def sentiment_endpoint():
     text = (request.json or {}).get("text","").strip()
-    return jsonify(analyze_sentiment(text))
+    cleaned = remove_signature(text)
+    return jsonify(analyze_sentiment(cleaned))
 
 @app.route("/reply", methods=["POST"])
 def reply_endpoint():
     data = (request.json or {})
     text = (data.get("text") or "").strip()
     lang = (data.get("lang") or "en").lower()
-    return jsonify({"reply": generate_reply_with_gemma3(text, lang)})
+    cleaned = remove_signature(text)
+    return jsonify({"reply": generate_reply_with_gemma3(cleaned, lang)})
 
-@app.route("/translate", methods=["POST"])
-def translate_endpoint():
+@app.route("/reply_stream", methods=["POST"])
+def reply_stream():
     data = (request.json or {})
     text = (data.get("text") or "").strip()
-    target = (data.get("target_lang") or "").lower()
-    if target not in ("en","ko"):
-        return jsonify({"error":"target_lang must be 'en' or 'ko'"}), 400
-    return jsonify({"translated": translate_text(text, target)})
+    lang = (data.get("lang") or "en").lower()
+    if not text:
+        return Response("data: \n\n", mimetype="text/event-stream")
 
-# 리스트 API (기존)
+    lang_instruction = "Reply in Korean." if lang == "ko" else "Reply in English."
+    refined_prompt = f"""You are an assistant that writes polite, professional email replies.
+{lang_instruction}
+Based on the following email, write a short relevant reply.
+
+--- EMAIL START ---
+{remove_signature(text)}
+--- EMAIL END ---
+
+Reply:
+"""
+
+    headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    return Response(stream_with_context(_ollama_stream(refined_prompt)),
+                    mimetype="text/event-stream", headers=headers)
+
+# 이메일 목록(요약 전)
 @app.route("/api/emails", methods=["GET"])
 def api_emails():
+    # run_fetch.py 안에 fetch_emails(max_results=N) 함수가 있다고 가정
     from run_fetch import fetch_emails
     raw_emails = fetch_emails(max_results=20)
     items = []
@@ -240,8 +388,8 @@ def api_emails():
         raw = raw or ""
         cleaned = remove_signature(raw).strip()
         lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
-        subject = (lines[0] if lines else "(no subject)")[:80]
-        snippet = (cleaned or raw).replace("\n", " ")[:160]
+        subject = (lines[0] if lines else "(no subject)")[:120]
+        snippet = (cleaned or raw).replace("\n", " ")[:200]
         items.append({
             "id": idx,
             "subject": subject,
@@ -250,17 +398,29 @@ def api_emails():
         })
     return jsonify(items)
 
-# 수동 텍스트 처리
+@app.route("/translate", methods=["POST"])
+def translate_endpoint():
+    data = (request.json or {})
+    text = (data.get("text") or "").strip()
+    target = (data.get("target_lang") or "").lower()
+    if target not in ("en", "ko"):
+        return jsonify({"error": "target_lang must be 'en' or 'ko'"}), 400
+    return jsonify({"translated": translate_text(text, target)})
+
+# 수동 텍스트 처리(요약+감정)
 @app.route("/process", methods=["POST"])
 def process_input():
     data = (request.json or {})
     text = (data.get("text") or "")
-    cleaned = remove_signature(text)
     lang = (data.get("lang") or "auto").lower()
+    mode = (data.get("mode") or "hybrid").lower()
+    cleaned = remove_signature(text)
     return jsonify({
-        "summary": summarize_text(cleaned, lang),
+        "summary": summarize_text(cleaned, lang, mode),
         "sentiment": analyze_sentiment(cleaned)["mapped_category"]
     })
 
 if __name__ == "__main__":
+    # 필요 시, 간단한 CORS 열어두기:
+    # from flask_cors import CORS; CORS(app)
     app.run(host="0.0.0.0", port=5000, debug=True)

@@ -2,125 +2,113 @@
 <html>
 <head>
   <meta charset="utf-8"/>
-  <title>Email AI Assistant</title>
+  <title>Email AI</title>
   <style>
-    :root{
-      --bg:#0f172a; --panel:#0b1220; --muted:#94a3b8; --fg:#e2e8f0; --accent:#22d3ee;
-      --card:#0b1220; --chip:#0f172a;
+    :root {
+      --bg: #0a0a0a;
+      --panel: #111311;
+      --card: #151a15;
+      --muted: #9aa29a;
+      --text: #e6f2e6;
+      --accent: #6ee7b7;
+      --accent2: #60a5fa;
+      --danger: #f87171;
+      --border: #1f2a1f;
     }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg);width:380px}
-    header{display:flex;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #1e293b;flex-wrap:wrap}
-    header .row{display:flex;gap:8px;align-items:center}
-    header button, select{
-      background:#0b1220;border:1px solid #1e293b;color:var(--fg);
-      padding:8px 10px;border-radius:10px;cursor:pointer
+    * { box-sizing: border-box; }
+    body { font-family: ui-sans-serif,system-ui,apple-system,Segoe UI,Roboto,Helvetica,Arial;
+           margin:0; background:var(--bg); color:var(--text); width:360px; }
+    header { padding:12px 14px; background:linear-gradient(180deg,#0f140f,#0a0a0a);
+             border-bottom:1px solid var(--border); }
+    header h3 { margin:0; font-size:15px; letter-spacing:.3px; }
+    .bar { display:flex; gap:8px; padding:10px 12px; border-bottom:1px solid var(--border); align-items:center; }
+    .seg { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:6px 8px; display:flex; gap:6px; align-items:center; }
+    .seg label { font-size:11px; color:var(--muted); }
+    select, button, textarea, input[type="text"] {
+      background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:8px 10px; font-size:12px; outline:none;
     }
-    header button:hover{border-color:#334155}
-
-    main{padding:12px}
-    .section{background:var(--panel);border:1px solid #1e293b;border-radius:14px;margin-bottom:12px}
-    .section h3{margin:0;padding:10px 12px;border-bottom:1px solid #1e293b;color:#d1d5db;display:flex;align-items:center;gap:8px}
-    .cards{max-height:280px;overflow:auto;padding:10px}
-    .item{background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:10px;margin-bottom:10px;cursor:pointer}
-    .item:hover{border-color:#334155}
-    .item .subject{font-weight:600;font-size:14px}
-    .item .snippet{font-size:12px;color:var(--muted);margin-top:4px}
-
-    .result{padding:12px}
-    .pill{display:inline-flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #1e293b;border-radius:999px;padding:6px 10px;margin-right:6px;margin-top:6px;font-size:12px}
-    textarea{width:100%;min-height:90px;background:#0b1220;color:var(--fg);border:1px solid #1e293b;border-radius:12px;padding:10px}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-    .btn{flex:1;background:#0b1220;border:1px solid #1e293b;color:var(--fg);padding:10px;border-radius:12px;cursor:pointer}
-    .btn:hover{border-color:#334155}
-    pre{white-space:pre-wrap;background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:10px}
-
-    /* Progress bar */
-    .progress-wrap{display:none;align-items:center;gap:10px;background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:10px;margin-top:8px}
-    .progress{position:relative;flex:1;height:8px;background:#0f172a;border-radius:999px;overflow:hidden}
-    .bar{position:absolute;inset:0 100% 0 0;background:linear-gradient(90deg,#22d3ee,#60a5fa);border-radius:999px;transition:inset 0.28s ease}
-    .progress-text{font-size:12px;color:#cbd5e1}
+    select:hover, button:hover, textarea:hover { border-color:#244224; }
+    button { cursor:pointer; transition:.12s; }
+    button.primary { background:#0f2a1a; border-color:#1f4d2f; }
+    button.primary:hover { background:#10311e; }
+    button.ghost { background:transparent; border-color:var(--border); }
+    .row { display:flex; gap:10px; padding:10px 12px; }
+    .col { flex:1; }
+    .list { max-height:180px; overflow:auto; background:var(--panel); border:1px solid var(--border); border-radius:12px; }
+    .item { padding:8px 10px; border-bottom:1px solid var(--border); cursor:pointer; }
+    .item:hover { background:#0e120e; }
+    .item h4 { margin:0 0 4px; font-size:12px; color:#dce9dc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .item p { margin:0; font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    textarea { width:100%; height:110px; resize:vertical; }
+    .out { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:8px; min-height:70px; white-space:pre-wrap; font-size:12px; }
+    .tag { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+    .tag.good { color:#a7f3d0; border-color:#134e4a; background:#032019; }
+    .tag.neu { color:#bfdbfe; border-color:#1e3a8a; background:#0b1733; }
+    .tag.bad { color:#fecaca; border-color:#7f1d1d; background:#2a0c0c; }
+    .progress { height:6px; background:#0f1a12; border:1px solid var(--border); border-radius:999px; overflow:hidden; display:none; }
+    .barin { height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition: width .2s; }
+    .actions { display:flex; flex-wrap:wrap; gap:8px; }
   </style>
 </head>
 <body>
-  <header>
-    <div class="row">
-      <button id="btnRefresh">⟳ Refresh</button>
-      <button id="btnRunAll">Run All</button>
-    </div>
-    <div class="row">
-      <label for="langSel">Language:</label>
+  <header><h3>Email AI Assistant</h3></header>
+
+  <div class="bar">
+    <div class="seg">
+      <label>Lang</label>
       <select id="langSel">
         <option value="auto">Auto</option>
-        <option value="en">English</option>
-        <option value="ko">한국어</option>
+        <option value="en">EN</option>
+        <option value="ko">KO</option>
       </select>
     </div>
-  </header>
+    <div class="seg">
+      <label>Summarize</label>
+      <select id="modeSel">
+        <option value="hybrid">Hybrid</option>
+        <option value="llm">LLM (best)</option>
+        <option value="fast">Fast</option>
+      </select>
+    </div>
+  </div>
 
-  <main>
-    <section class="section">
-      <h3>Inbox Preview</h3>
-      <div id="list" class="cards"></div>
-    </section>
+  <div class="row">
+    <div class="col">
+      <div class="list" id="emailList"></div>
+    </div>
+  </div>
 
-    <section class="section">
-      <h3>Email</h3>
-      <div class="result">
-        <pre id="emailBox">Select an email above.</pre>
-        <div class="actions">
-          <button class="btn" id="btnToEN">Translate → EN</button>
-          <button class="btn" id="btnToKO">Translate → KO</button>
-        </div>
+  <div class="row">
+    <div class="col">
+      <textarea id="inputText" placeholder="Paste or select email…"></textarea>
+      <div class="actions" style="margin-top:8px">
+        <button id="btnSumm" class="primary">Summarize</button>
+        <button id="btnSent">Sentiment</button>
+        <button id="btnReply">Reply (stream)</button>
+        <button id="toEN" class="ghost">Translate → EN</button>
+        <button id="toKO" class="ghost">Translate → KO</button>
       </div>
-    </section>
+      <div class="progress" id="prog"><div class="barin" id="progbar"></div></div>
+    </div>
+  </div>
 
-    <section class="section">
-      <h3>Summary</h3>
-      <div class="result">
-        <div class="actions">
-          <button class="btn" id="btnSumm">Summarize (use Language)</button>
-        </div>
-        <pre id="summaryBox"></pre>
+  <div class="row">
+    <div class="col">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h4 style="margin:6px 0;">Summary</h4>
+        <span id="sentTag" class="tag">sentiment: -</span>
       </div>
-    </section>
+      <div id="outSummary" class="out"></div>
+    </div>
+  </div>
 
-    <section class="section">
-      <h3>Sentiment</h3>
-      <div class="result">
-        <div id="sentPills"></div>
-      </div>
-    </section>
-
-    <section class="section">
-      <h3>Reply</h3>
-      <div class="result">
-        <div class="actions">
-          <button class="btn" id="btnReply">Generate Reply (use Language)</button>
-        </div>
-        <!-- Progress indicator (fake %) -->
-        <div class="progress-wrap" id="replyProgress">
-          <div class="progress"><div class="bar" id="replyBar"></div></div>
-          <span class="progress-text" id="replyPct">Generating… 0%</span>
-        </div>
-        <pre id="replyBox"></pre>
-      </div>
-    </section>
-
-    <section class="section">
-      <h3>Manual Text</h3>
-      <div class="result">
-        <textarea id="manual"></textarea>
-        <div class="actions">
-          <button class="btn" id="btnManualSumm">Summarize</button>
-          <button class="btn" id="btnManualSent">Sentiment</button>
-          <button class="btn" id="btnManualReply">Reply</button>
-          <button class="btn" id="btnManToEN">→ EN</button>
-          <button class="btn" id="btnManToKO">→ KO</button>
-        </div>
-      </div>
-    </section>
-  </main>
+  <div class="row">
+    <div class="col">
+      <h4 style="margin:6px 0;">Reply</h4>
+      <div id="outReply" class="out"></div>
+    </div>
+  </div>
 
   <script src="popup.js"></script>
 </body>
