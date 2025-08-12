@@ -511,15 +511,6 @@ def api_emails():
         })
     return jsonify(items)
 
-@app.route("/translate", methods=["POST"])
-def translate_endpoint():
-    data = (request.json or {})
-    text = (data.get("text") or "").strip()
-    target = (data.get("target_lang") or "").lower()
-    if target not in ("en", "ko"):
-        return jsonify({"error": "target_lang must be 'en' or 'ko'"}), 400
-    return jsonify({"translated": translate_text(text, target)})
-
 # 수동 텍스트 처리(요약+감정)
 @app.route("/process", methods=["POST"])
 def process_input():
