@@ -7,11 +7,13 @@
     listEmpty: $("listEmpty"),
     original: $("original"),
     summary: $("summary"),
+    summaryLlm: $("summaryLlm"),
     reply: $("reply"),
     sentLabel: $("sentLabel"),
     sentScore: $("sentScore"),
     sentCat: $("sentCat"),
     spSummary: $("loadingSummary"),
+    spSummaryLlm: $("loadingSummaryLlm"),
     spSent: $("loadingSentiment"),
     spReply: $("loadingReply"),
   };
@@ -63,14 +65,18 @@
     selected = idx;
     const item = emails[idx];
     els.original.textContent = item?.text || "(empty)";
-    // reset outputs
+    resetOutputs();
+  }
+
+  function resetOutputs() {
     els.summary.textContent = "";
+    els.summaryLlm.textContent = "";
     els.reply.textContent = "";
     els.sentLabel.textContent = "-";
     els.sentScore.textContent = "-";
     els.sentCat.textContent = "-";
-    document.querySelector(".analysis.card.sentiment")
-      .className = "analysis card sentiment";
+    const wrap = document.querySelector(".analysis.card.sentiment");
+    wrap.classList.remove("positive","neutral","negative");
   }
 
   function getSelectedText() {
@@ -79,7 +85,7 @@
     return t || "";
   }
 
-  async function runSummary() {
+  async function runSummaryFast() {
     const t = getSelectedText(); if (!t) return;
     toggle(els.spSummary, true);
     try {
@@ -91,6 +97,20 @@
       const data = await res.json();
       els.summary.textContent = data.summary || "(no summary)";
     } finally { toggle(els.spSummary, false); }
+  }
+
+  async function runSummaryLlm() {
+    const t = getSelectedText(); if (!t) return;
+    toggle(els.spSummaryLlm, true);
+    try {
+      const res = await fetch(`${baseUrl}/summarize_llm`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ text: t })
+      });
+      const data = await res.json();
+      els.summaryLlm.textContent = data.summary || "(no summary)";
+    } finally { toggle(els.spSummaryLlm, false); }
   }
 
   async function runSentiment() {
@@ -126,19 +146,52 @@
     } finally { toggle(els.spReply, false); }
   }
 
+  async function translateLLM(target_lang) {
+    const t = getSelectedText(); if (!t) return;
+    disableToolbar(true);
+    try {
+      const res = await fetch(`${baseUrl}/translate_llm`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ text: t, target_lang })
+      });
+      const data = await res.json();
+      const translated = (data.translated || "").trim();
+      if (!translated) return;
+
+      // 선택된 이메일을 번역문으로 대체 (없으면 수동 텍스트 교체)
+      if (selected >= 0 && emails[selected]) {
+        emails[selected].text = translated;
+        // 스니펫도 업데이트
+        emails[selected].snippet = translated.slice(0, 80).replace(/\n/g, " ");
+        renderList();
+        selectEmail(selected);
+      } else {
+        $("manualText").value = translated;
+        els.original.textContent = translated;
+      }
+      resetOutputs();
+    } catch (e) {
+      alert("Translate error: " + e);
+    } finally {
+      disableToolbar(false);
+    }
+  }
+
   function toggle(el, on) { el.classList.toggle("hidden", !on); }
   function disableToolbar(on) {
-    ["btnRefresh","btnRunAll","btnSummary","btnSentiment","btnReply","btnUseManual"]
+    ["btnRefresh","btnRunAll","btnSummary","btnSummaryLlm","btnSentiment","btnReply","btnUseManual","btnToEN","btnToKO"]
       .forEach(id => { const b = $(id); if (b) b.disabled = on; });
   }
 
   // buttons
   $("btnRefresh").addEventListener("click", fetchEmails);
-  $("btnSummary").addEventListener("click", runSummary);
+  $("btnSummary").addEventListener("click", runSummaryFast);
+  $("btnSummaryLlm").addEventListener("click", runSummaryLlm);
   $("btnSentiment").addEventListener("click", runSentiment);
   $("btnReply").addEventListener("click", runReply);
   $("btnRunAll").addEventListener("click", async () => {
-    await runSummary(); await runSentiment(); await runReply();
+    await runSummaryFast(); await runSentiment(); await runReply();
   });
   $("btnUseManual").addEventListener("click", () => {
     const t = $("manualText").value || "";
@@ -146,6 +199,8 @@
     renderList();
     selectEmail(0);
   });
+  $("btnToEN").addEventListener("click", () => translateLLM("en"));
+  $("btnToKO").addEventListener("click", () => translateLLM("ko"));
 
   // init
   fetchEmails();

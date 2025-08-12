@@ -326,6 +326,139 @@ Reply:
         return "⚠️ Reply generation timed out. Please try again."
     except Exception as e:
         return f"⚠️ Unexpected error: {e}"
+    
+
+# --- add: LLM 요약 함수 ---
+def summarize_llm_ollama(text: str, max_chars: int = 2000) -> str:
+    """
+    Ollama 로컬 LLM으로 더 정밀한 요약.
+    - 입력은 시그니처 제거 후 길이 제한
+    - 원문의 언어를 유지해서 2~3문장으로 요약하도록 지시
+    """
+    cleaned = remove_signature(text or "").strip()
+    if not cleaned:
+        return ""
+
+    # 너무 긴 입력은 잘라서 속도/품질 안정
+    cleaned = cleaned[:max_chars]
+
+    prompt = f"""You are a helpful assistant.
+Summarize the following email in the SAME language as the original.
+Be concise but keep key details (dates, deadlines, requests, numbers).
+Write 2–3 sentences.
+
+--- EMAIL START ---
+{cleaned}
+--- EMAIL END ---
+
+Summary:
+"""
+
+    try:
+        # 원하는 모델로 변경 가능: e.g. "ollama run llama3:8b"
+        cmd = "ollama run gemma3:4b"
+        proc = subprocess.run(
+            shlex.split(cmd),
+            input=prompt,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=120
+        )
+        if proc.returncode != 0:
+            # ollama 실행 에러
+            return f"⚠️ LLM error: {proc.stderr.strip() or 'unknown error'}"
+        out = (proc.stdout or "").strip()
+
+        # 모델이 프롬프트 일부를 에코한 경우 정리
+        if "Summary:" in out:
+            out = out.split("Summary:", 1)[-1].strip()
+
+        # 가끔 템플릿 문구가 딸려오는 걸 정리
+        bad_heads = ("Please provide", "I cannot")
+        if any(out.startswith(h) for h in bad_heads):
+            return "⚠️ The model did not return a valid summary. Try again with clearer input."
+
+        return out or "⚠️ (empty response from model)"
+    except subprocess.TimeoutExpired:
+        return "⚠️ LLM summarization timed out."
+    except Exception as e:
+        return f"⚠️ Unexpected error: {e}"
+    
+# --- add: LLM 번역 함수 ---
+def translate_llm_ollama(text: str, target_lang: str = "en", max_chars: int = 2000) -> str:
+    """
+    Ollama LLM을 이용한 간단한 번역.
+    - target_lang: 'en' 또는 'ko'
+    - 입력 길이 제한으로 속도/안정성 확보
+    - 출력은 번역문만 (설명/주석 금지)
+    """
+    source = (text or "").strip()
+    if not source:
+        return ""
+
+    target_lang = (target_lang or "en").lower()
+    if target_lang not in ("en", "ko"):
+        return "⚠️ target_lang must be 'en' or 'ko'"
+
+    source = source[:max_chars]
+    instruction = "Translate into English only. Output ONLY the translation." if target_lang == "en" \
+                  else "Translate into Korean only. Output ONLY the translation."
+
+    prompt = f"""{instruction}
+Preserve key details such as names, dates, times, amounts, and URLs. Keep formatting when helpful.
+
+--- TEXT START ---
+{source}
+--- TEXT END ---
+"""
+
+    try:
+        cmd = "ollama run gemma3:4b"  # 필요시 llama3:8b 등으로 교체 가능
+        proc = subprocess.run(
+            shlex.split(cmd),
+            input=prompt,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=120
+        )
+        if proc.returncode != 0:
+            return f"⚠️ LLM error: {proc.stderr.strip() or 'unknown error'}"
+
+        out = (proc.stdout or "").strip()
+
+        # 모델이 쓸데없는 머리말을 붙였으면 제거 시도
+        bad_heads = ("Translation:", "Result:", "Output:", "Please provide")
+        for h in bad_heads:
+            if out.startswith(h):
+                out = out[len(h):].strip()
+
+        return out or "⚠️ (empty response from model)"
+    except subprocess.TimeoutExpired:
+        return "⚠️ LLM translation timed out."
+    except Exception as e:
+        return f"⚠️ Unexpected error: {e}"
+
+# --- add: Flask 엔드포인트 ---
+@app.route("/translate_llm", methods=["POST"])
+def translate_llm_endpoint():
+    data = (request.json or {})
+    text = (data.get("text") or "").strip()
+    target = (data.get("target_lang") or "en").lower()
+    if not text:
+        return jsonify({"translated": ""})
+    translated = translate_llm_ollama(text, target_lang=target)
+    return jsonify({"translated": translated})
+
+@app.route("/summarize_llm", methods=["POST"])
+def summarize_llm_endpoint():
+    data = (request.json or {})
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"summary": ""})
+    summary = summarize_llm_ollama(text)
+    return jsonify({"summary": summary})
 
 # ----------------------------
 # API endpoints

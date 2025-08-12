@@ -12,14 +12,15 @@
     *{box-sizing:border-box} html,body{margin:0;padding:0}
     body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Noto Sans,"Apple SD Gothic Neo","맑은 고딕",Arial,sans-serif;
          color:var(--text); background:radial-gradient(1200px 500px at 50% -10%, rgba(96,165,250,.18), rgba(34,211,238,.1) 30%, transparent 60%), var(--bg);
-         width:360px; min-height:560px; padding:14px;}
+         width:360px; min-height:680px; padding:14px;}
     h1{margin:0 0 10px; font-size:18px; font-weight:700; display:flex; gap:8px; align-items:center;}
     .pill{font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); color:#cbd5e1;}
-    .toolbar{display:flex; gap:8px; margin:8px 0 12px;}
+    .toolbar{display:flex; gap:8px; margin:8px 0 12px; flex-wrap:wrap;}
     .btn{appearance:none; border:1px solid var(--border); border-radius:10px; background:linear-gradient(180deg,#1f2937,#0b1324);
          color:#e5e7eb; padding:8px 10px; font-weight:600; font-size:12px; cursor:pointer;}
     .btn:hover{box-shadow:0 8px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(96,165,250,.25); border-color:#2a3b56;}
-    .btn.primary{background:linear-gradient(180deg,#1b3a55,#0c1f39); border-color:#1e3a8a;} .btn.success{background:linear-gradient(180deg,#064e3b,#022c22); border-color:#064e3b;}
+    .btn.primary{background:linear-gradient(180deg,#1b3a55,#0c1f39); border-color:#1e3a8a;}
+    .btn.success{background:linear-gradient(180deg,#064e3b,#022c22); border-color:#064e3b;}
     .btn.full{flex:1}
     .card{background:linear-gradient(180deg,var(--card),var(--card2)); border:1px solid var(--border); border-radius:14px; overflow:hidden;}
     .card .head{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border); font-weight:700; color:#cbd5e1;}
@@ -32,7 +33,7 @@
     .grid{display:grid; grid-template-columns:1fr; gap:10px;}
     .analysis{border-left:3px solid #2a3b56;}
     .sentiment.positive{border-left-color:var(--good)} .sentiment.neutral{border-left-color:var(--warn)} .sentiment.negative{border-left-color:var(--bad)}
-    .muted{color:var(--muted)} textarea,input,pre{width:100%; border-radius:12px; border:1px solid var(--border); background:#0b1222; color:var(--text); padding:10px; font:inherit;}
+    .muted{color:var(--muted)} textarea,input,pre{width:100%; border-radius:12px; border:1px solid var(--border); background:#0b1222; color:#fff; padding:10px; font:inherit;}
     textarea{min-height:110px; resize:vertical;} pre{white-space:pre-wrap}
     .row{display:flex; gap:8px;} .tag{font-size:11px; padding:2px 6px; border:1px solid var(--border); border-radius:999px; color:#cbd5e1;}
     .spinner{width:16px;height:16px;border-radius:50%; border:2px solid rgba(255,255,255,.15); border-top-color:var(--accent); animation:spin .8s linear infinite; display:inline-block; vertical-align:-3px; margin-right:6px;}
@@ -44,7 +45,7 @@
 
   <div class="toolbar">
     <button id="btnRefresh" class="btn">↻ Refresh</button>
-    <button id="btnRunAll" class="btn primary full">Run All (Summary • Sentiment • Reply)</button>
+    <button id="btnRunAll" class="btn primary full">Run All (Fast • Sent • Reply)</button>
   </div>
 
   <section class="card">
@@ -62,8 +63,13 @@
 
       <div class="grid">
         <div class="analysis card">
-          <div class="head">📝 Summary <span id="loadingSummary" class="spinner hidden"></span></div>
+          <div class="head">📝 Summary (Fast / HF) <span id="loadingSummary" class="spinner hidden"></span></div>
           <div class="body"><pre id="summary"></pre></div>
+        </div>
+
+        <div class="analysis card">
+          <div class="head">🧠 Summary (LLM / Ollama) <span id="loadingSummaryLlm" class="spinner hidden"></span></div>
+          <div class="body"><pre id="summaryLlm"></pre></div>
         </div>
 
         <div class="analysis card sentiment">
@@ -84,9 +90,12 @@
       </div>
 
       <div class="toolbar" style="margin-top:10px;">
-        <button id="btnSummary" class="btn">Summarize</button>
+        <button id="btnSummary" class="btn">Summary (Fast)</button>
+        <button id="btnSummaryLlm" class="btn">Summary (LLM)</button>
         <button id="btnSentiment" class="btn">Sentiment</button>
         <button id="btnReply" class="btn success">Generate Reply</button>
+        <button id="btnToEN" class="btn">Translate → EN (LLM)</button>
+        <button id="btnToKO" class="btn">Translate → KO (LLM)</button>
       </div>
     </div>
   </section>
