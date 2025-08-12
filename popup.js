@@ -23,6 +23,13 @@
     subjectLine: $("subjectLine"),
     metaLine: $("metaLine"),
     search: $("searchBox"),
+    tabs: document.querySelectorAll(".tab[data-panel]"),
+    panels: {
+      fast: $("panel-summary-fast"),
+      llm: $("panel-summary-llm"),
+      sent: $("panel-sentiment"),
+      reply: $("panel-reply"),
+    }
   };
 
   let emails = [];
@@ -48,11 +55,11 @@
   // top progress
   function topProgress(on){
     clearInterval(topBarTimer);
-    if(!on){ els.topbar.style.width = "0%"; return; }
-    let w = 0; els.topbar.style.width = "0%";
+    if(!on){ if(els.topbar) els.topbar.style.width = "0%"; return; }
+    let w = 0; if(els.topbar) els.topbar.style.width = "0%";
     topBarTimer = setInterval(() => {
       w = (w + 7) % 105;
-      els.topbar.style.width = `${w}%`;
+      if(els.topbar) els.topbar.style.width = `${w}%`;
     }, 110);
   }
 
@@ -129,7 +136,7 @@
     els.sentLabel.textContent = "-";
     els.sentScore.textContent = "-";
     els.sentCat.textContent = "-";
-    const wrap = document.querySelector(".analysis.sentiment");
+    const wrap = $("panel-sentiment");
     wrap.classList.remove("positive","neutral","negative");
   }
 
@@ -150,6 +157,7 @@
       });
       const data = await res.json();
       els.summary.textContent = data.summary || "(no summary)";
+      activateTab("panel-summary-fast");
     } catch(e){ alert("Summary (Fast) error: " + e); }
     finally { toggle(els.spinFast, false); topProgress(false); }
   }
@@ -164,6 +172,7 @@
       });
       const data = await res.json();
       els.summaryLlm.textContent = data.summary || "(no summary)";
+      activateTab("panel-summary-llm");
     } catch(e){ alert("Summary (LLM) error: " + e); }
     finally { toggle(els.spinLlm, false); topProgress(false); }
   }
@@ -180,9 +189,10 @@
       els.sentLabel.textContent = data.label || "-";
       els.sentScore.textContent = typeof data.score === "number" ? data.score.toFixed(2) : "-";
       els.sentCat.textContent = data.mapped_category || "-";
-      const wrap = document.querySelector(".analysis.sentiment");
+      const wrap = $("panel-sentiment");
       wrap.classList.remove("positive","neutral","negative");
       if (data.mapped_category) wrap.classList.add(data.mapped_category);
+      activateTab("panel-sentiment");
     } catch(e){ alert("Sentiment error: " + e); }
     finally { toggle(els.spinSent, false); topProgress(false); }
   }
@@ -197,6 +207,7 @@
       });
       const data = await res.json();
       els.reply.textContent = data.reply || "(no reply)";
+      activateTab("panel-reply");
     } catch(e){ alert("Reply error: " + e); }
     finally { toggle(els.spinReply, false); topProgress(false); }
   }
@@ -213,7 +224,6 @@
       const translated = (data.translated || "").trim();
       if (!translated) return;
 
-      // update data in-place for selected item
       if (selected >= 0 && filtered[selected]) {
         const globalIndex = emails.indexOf(filtered[selected]);
         const patch = { text: translated, snippet: translated.slice(0,80).replace(/\n/g," ") };
@@ -237,6 +247,15 @@
     catch { /* ignore */ }
   }
 
+  // tabs
+  function activateTab(panelId){
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    const btns = document.querySelectorAll(".tab[data-panel]");
+    btns.forEach(b => b.classList.toggle("active", b.dataset.panel === panelId));
+    const p = $(panelId);
+    if (p) p.classList.add("active");
+  }
+
   // search filter
   function applyFilter() {
     const q = (els.search.value || "").toLowerCase();
@@ -252,6 +271,7 @@
   // buttons
   $("btnRefresh").addEventListener("click", fetchEmails);
   $("btnRunAll").addEventListener("click", async () => { await runSummaryFast(); await runSentiment(); await runReply(); });
+
   $("btnUseManual").addEventListener("click", () => {
     const t = $("manualText").value || "";
     emails = [{ subject: "Manual Text", snippet: t.slice(0,80).replace(/\n/g," "), text: t }];
@@ -272,6 +292,9 @@
   $("copySummaryLlm").addEventListener("click", () => copyText(els.summaryLlm.textContent || "", "LLM summary"));
 
   els.search.addEventListener("input", applyFilter);
+
+  // Tab header clicks
+  els.tabs.forEach(btn => btn.addEventListener("click", () => activateTab(btn.dataset.panel)));
 
   // init
   fetchEmails();
