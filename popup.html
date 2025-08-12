@@ -1,105 +1,101 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="utf-8"/>
   <title>Email AI Assistant</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <style>
     :root{
-      --bg:#0f172a; --panel:#111827; --muted:#6b7280; --card:#111827; --card2:#0b1222;
-      --text:#e5e7eb; --accent:#22d3ee; --border:#1f2937; --good:#10b981; --warn:#f59e0b; --bad:#ef4444;
+      --bg:#0f172a; --panel:#0b1220; --muted:#94a3b8; --fg:#e2e8f0; --accent:#22d3ee;
+      --card:#0b1220; --chip:#0f172a;
     }
-    *{box-sizing:border-box} html,body{margin:0;padding:0}
-    body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Noto Sans,"Apple SD Gothic Neo","맑은 고딕",Arial,sans-serif;
-         color:var(--text); background:radial-gradient(1200px 500px at 50% -10%, rgba(96,165,250,.18), rgba(34,211,238,.1) 30%, transparent 60%), var(--bg);
-         width:360px; min-height:560px; padding:14px;}
-    h1{margin:0 0 10px; font-size:18px; font-weight:700; display:flex; gap:8px; align-items:center;}
-    .pill{font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); color:#cbd5e1;}
-    .toolbar{display:flex; gap:8px; margin:8px 0 12px;}
-    .btn{appearance:none; border:1px solid var(--border); border-radius:10px; background:linear-gradient(180deg,#1f2937,#0b1324);
-         color:#e5e7eb; padding:8px 10px; font-weight:600; font-size:12px; cursor:pointer;}
-    .btn:hover{box-shadow:0 8px 18px rgba(0,0,0,.25), inset 0 0 0 1px rgba(96,165,250,.25); border-color:#2a3b56;}
-    .btn.primary{background:linear-gradient(180deg,#1b3a55,#0c1f39); border-color:#1e3a8a;} .btn.success{background:linear-gradient(180deg,#064e3b,#022c22); border-color:#064e3b;}
-    .btn.full{flex:1}
-    .card{background:linear-gradient(180deg,var(--card),var(--card2)); border:1px solid var(--border); border-radius:14px; overflow:hidden;}
-    .card .head{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border); font-weight:700; color:#cbd5e1;}
-    .card .body{padding:10px 12px}
-    #emailList{display:flex; flex-direction:column; gap:8px;}
-    .email-item{padding:10px; border:1px solid var(--border); border-radius:12px; background:linear-gradient(180deg,#0d162a,#0b1222); cursor:pointer;}
-    .email-item:hover{box-shadow:0 8px 18px rgba(0,0,0,.25); border-color:#243244;}
-    .subj{font-weight:600; color:#e5e7eb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .meta{color:var(--muted); font-size:11px; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .grid{display:grid; grid-template-columns:1fr; gap:10px;}
-    .analysis{border-left:3px solid #2a3b56;}
-    .sentiment.positive{border-left-color:var(--good)} .sentiment.neutral{border-left-color:var(--warn)} .sentiment.negative{border-left-color:var(--bad)}
-    .muted{color:var(--muted)} textarea,input,pre{width:100%; border-radius:12px; border:1px solid var(--border); background:#0b1222; color:var(--text); padding:10px; font:inherit;}
-    textarea{min-height:110px; resize:vertical;} pre{white-space:pre-wrap}
-    .row{display:flex; gap:8px;} .tag{font-size:11px; padding:2px 6px; border:1px solid var(--border); border-radius:999px; color:#cbd5e1;}
-    .spinner{width:16px;height:16px;border-radius:50%; border:2px solid rgba(255,255,255,.15); border-top-color:var(--accent); animation:spin .8s linear infinite; display:inline-block; vertical-align:-3px; margin-right:6px;}
-    @keyframes spin{to{transform:rotate(360deg)}} .hidden{display:none}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg);width:360px}
+    header{display:flex;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #1e293b}
+    header button{background:#0b1220;border:1px solid #1e293b;color:var(--fg);padding:8px 10px;border-radius:10px;cursor:pointer}
+    header button:hover{border-color:#334155}
+    main{padding:12px}
+
+    .section{background:var(--panel);border:1px solid #1e293b;border-radius:14px;margin-bottom:12px}
+    .section h3{margin:0;padding:10px 12px;border-bottom:1px solid #1e293b;color:#d1d5db;display:flex;align-items:center;gap:8px}
+    .cards{max-height:320px;overflow:auto;padding:10px}
+    .item{background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:10px;margin-bottom:10px;cursor:pointer}
+    .item:hover{border-color:#334155}
+    .item .subject{font-weight:600;font-size:14px}
+    .item .snippet{font-size:12px;color:var(--muted);margin-top:4px}
+
+    .result{padding:12px}
+    .pill{display:inline-flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #1e293b;border-radius:999px;padding:6px 10px;margin-right:6px;margin-top:6px;font-size:12px}
+
+    textarea{width:100%;min-height:90px;background:#0b1220;color:var(--fg);border:1px solid #1e293b;border-radius:12px;padding:10px}
+    .actions{display:flex;gap:8px;margin-top:8px}
+    .btn{flex:1;background:#0b1220;border:1px solid #1e293b;color:var(--fg);padding:10px;border-radius:12px;cursor:pointer}
+    .btn:hover{border-color:#334155}
+
+    /* Progress bar */
+    .progress-wrap{display:none;align-items:center;gap:10px;background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:10px;margin-top:8px}
+    .progress{position:relative;flex:1;height:8px;background:#0f172a;border-radius:999px;overflow:hidden}
+    .bar{position:absolute;inset:0 100% 0 0;background:linear-gradient(90deg,#22d3ee,#60a5fa);border-radius:999px;transition:inset 0.28s ease}
+    .progress-text{font-size:12px;color:#cbd5e1}
+    .hidden{display:none!important}
+
+    pre{white-space:pre-wrap;background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:10px}
   </style>
 </head>
 <body>
-  <h1>✉️ Email AI Assistant <span class="pill">local</span></h1>
+  <header>
+    <button id="btnRefresh">⟳ Refresh</button>
+    <button id="btnRunAll">Run All (Summary • Sentiment • Reply)</button>
+  </header>
 
-  <div class="toolbar">
-    <button id="btnRefresh" class="btn">↻ Refresh</button>
-    <button id="btnRunAll" class="btn primary full">Run All (Summary • Sentiment • Reply)</button>
-  </div>
+  <main>
+    <section class="section">
+      <h3>Inbox Preview</h3>
+      <div id="list" class="cards"></div>
+    </section>
 
-  <section class="card">
-    <div class="head">Inbox Preview</div>
-    <div class="body">
-      <div id="emailList"></div>
-      <div id="listEmpty" class="muted" style="margin-top:6px;">No emails loaded yet.</div>
-    </div>
-  </section>
+    <section class="section">
+      <h3>Summary</h3>
+      <div class="result">
+        <pre id="summaryBox">Select an email above.</pre>
+      </div>
+    </section>
 
-  <section class="card" style="margin-top:12px;">
-    <div class="head">Selected Email</div>
-    <div class="body">
-      <pre id="original" class="muted" style="max-height:120px; overflow:auto;">Select an email above…</pre>
+    <section class="section">
+      <h3>Sentiment</h3>
+      <div class="result">
+        <div id="sentPills"></div>
+      </div>
+    </section>
 
-      <div class="grid">
-        <div class="analysis card">
-          <div class="head">📝 Summary <span id="loadingSummary" class="spinner hidden"></span></div>
-          <div class="body"><pre id="summary"></pre></div>
+    <section class="section">
+      <h3>Reply</h3>
+      <div class="result">
+        <div class="actions">
+          <button class="btn" id="btnReply">Generate Reply</button>
         </div>
 
-        <div class="analysis card sentiment">
-          <div class="head">📊 Sentiment <span id="loadingSentiment" class="spinner hidden"></span></div>
-          <div class="body">
-            <div class="row">
-              <span id="sentLabel" class="tag">-</span>
-              <span id="sentScore" class="tag">-</span>
-              <span id="sentCat" class="tag">-</span>
-            </div>
-          </div>
+        <!-- Progress indicator -->
+        <div class="progress-wrap" id="replyProgress">
+          <div class="progress"><div class="bar" id="replyBar"></div></div>
+          <span class="progress-text" id="replyPct">Generating… 0%</span>
         </div>
 
-        <div class="analysis card">
-          <div class="head">💬 Suggested Reply <span id="loadingReply" class="spinner hidden"></span></div>
-          <div class="body"><pre id="reply"></pre></div>
+        <pre id="replyBox"></pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h3>Manual Text Input</h3>
+      <div class="result">
+        <textarea id="manual"></textarea>
+        <div class="actions">
+          <button class="btn" id="btnManualSumm">Summarize</button>
+          <button class="btn" id="btnManualSent">Sentiment</button>
+          <button class="btn" id="btnManualReply">Reply</button>
         </div>
       </div>
-
-      <div class="toolbar" style="margin-top:10px;">
-        <button id="btnSummary" class="btn">Summarize</button>
-        <button id="btnSentiment" class="btn">Sentiment</button>
-        <button id="btnReply" class="btn success">Generate Reply</button>
-      </div>
-    </div>
-  </section>
-
-  <section class="card" style="margin-top:12px;">
-    <div class="head">Manual Text Input</div>
-    <div class="body">
-      <textarea id="manualText" placeholder="Paste any email text here…"></textarea>
-      <div class="toolbar" style="margin-top:8px;">
-        <button id="btnUseManual" class="btn full">Use as Selected</button>
-      </div>
-    </div>
-  </section>
+    </section>
+  </main>
 
   <script src="popup.js"></script>
 </body>

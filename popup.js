@@ -1,152 +1,161 @@
-(() => {
-  const baseUrl = "http://localhost:5000";
+const API = "http://localhost:5000";
 
-  const $ = (id) => document.getElementById(id);
-  const els = {
-    list: $("emailList"),
-    listEmpty: $("listEmpty"),
-    original: $("original"),
-    summary: $("summary"),
-    reply: $("reply"),
-    sentLabel: $("sentLabel"),
-    sentScore: $("sentScore"),
-    sentCat: $("sentCat"),
-    spSummary: $("loadingSummary"),
-    spSent: $("loadingSentiment"),
-    spReply: $("loadingReply"),
-  };
+const $ = (sel) => document.querySelector(sel);
+const list = $("#list");
+const summaryBox = $("#summaryBox");
+const sentPills = $("#sentPills");
+const replyBox = $("#replyBox");
 
-  let emails = [];
-  let selected = -1;
+// Progress elements
+const progWrap = $("#replyProgress");
+const progBar  = $("#replyBar");
+const progText = $("#replyPct");
+let progTimer  = null;
+let progValue  = 0;
 
-  function esc(s = "") {
-    return s.replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m]));
-  }
+function showProgress() {
+  progValue = 0;
+  progWrap.style.display = "flex";
+  tickProgress(8); // 시작점
+  if (progTimer) clearInterval(progTimer);
+  // 느리게 95%까지 자동 증가(응답 오면 100%로 마감)
+  progTimer = setInterval(() => {
+    if (progValue < 95) tickProgress(progValue + Math.max(1, (98 - progValue) * 0.03));
+  }, 300);
+}
+function hideProgress(done=false) {
+  if (progTimer) clearInterval(progTimer);
+  if (done) tickProgress(100);
+  setTimeout(() => { progWrap.style.display = "none"; tickProgress(0); }, 400);
+}
+function tickProgress(v) {
+  progValue = Math.max(0, Math.min(100, v));
+  // bar 너비 조절 (inset-right를 줄여가며 확장)
+  const right = 100 - progValue;
+  progBar.style.inset = `0 ${right}% 0 0`;
+  progText.textContent = `Generating… ${Math.round(progValue)}%`;
+}
 
-  async function fetchEmails() {
-    disableToolbar(true);
-    try {
-      const res = await fetch(`${baseUrl}/api/emails`);
-      const data = await res.json();
-      emails = Array.isArray(data) ? data : [];
-      renderList();
-      if (emails[0]) selectEmail(0);
-    } catch (e) {
-      console.error(e);
-      alert("Failed to load emails from API.");
-    } finally {
-      disableToolbar(false);
-    }
-  }
+async function api(path, body) {
+  const res = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(body || {})
+  });
+  if (!res.ok) throw new Error(`${path} failed`);
+  return res.json();
+}
 
-  function renderList() {
-    els.list.innerHTML = "";
-    if (!emails.length) {
-      els.listEmpty.style.display = "block";
+async function loadEmails() {
+  list.innerHTML = "<div class='item'><div class='subject'>Loading…</div></div>";
+  try {
+    const res = await fetch(`${API}/api/emails`);
+    const items = await res.json();
+    if (!Array.isArray(items) || items.length === 0) {
+      list.innerHTML = "<div class='item'><div class='subject'>(empty)</div></div>";
       return;
     }
-    els.listEmpty.style.display = "none";
-    emails.forEach((item, idx) => {
+    list.innerHTML = "";
+    items.forEach((it, idx) => {
       const div = document.createElement("div");
-      div.className = "email-item";
-      div.dataset.id = String(idx);
+      div.className = "item";
+      div.dataset.idx = idx;
       div.innerHTML = `
-        <div class="subj">${esc(item.subject || "(no subject)")}</div>
-        <div class="meta">${esc(item.snippet || "")}</div>
-      `;
-      div.addEventListener("click", () => selectEmail(idx));
-      els.list.appendChild(div);
+        <div class="subject">${escapeHtml(it.subject || "(no subject)")}</div>
+        <div class="snippet">${escapeHtml(it.snippet || "")}</div>`;
+      div.addEventListener("click", () => onSelect(it));
+      list.appendChild(div);
     });
+  } catch (e) {
+    list.innerHTML = `<div class='item'><div class='subject'>Load failed</div><div class='snippet'>${e.message}</div></div>`;
   }
+}
 
-  function selectEmail(idx) {
-    selected = idx;
-    const item = emails[idx];
-    els.original.textContent = item?.text || "(empty)";
-    // reset outputs
-    els.summary.textContent = "";
-    els.reply.textContent = "";
-    els.sentLabel.textContent = "-";
-    els.sentScore.textContent = "-";
-    els.sentCat.textContent = "-";
-    document.querySelector(".analysis.card.sentiment")
-      .className = "analysis card sentiment";
+let currentText = "";
+
+async function onSelect(item) {
+  currentText = item.text || item.snippet || "";
+  replyBox.textContent = "";
+  sentPills.innerHTML = "";
+  summaryBox.textContent = "Summarizing…";
+
+  // Summary
+  const s = await api("/summarize", { text: currentText });
+  summaryBox.textContent = s.summary || "(no summary)";
+
+  // Sentiment
+  const se = await api("/sentiment", { text: currentText });
+  renderSentiment(se);
+}
+
+function renderSentiment(se){
+  sentPills.innerHTML = "";
+  const p1 = pill(se.label || "");
+  const p2 = pill(String(se.score ?? ""), true);
+  const p3 = pill(se.mapped_category || "");
+  sentPills.append(p1,p2,p3);
+}
+
+function pill(text, subtle){
+  const el = document.createElement("span");
+  el.className = "pill";
+  if (subtle) el.style.opacity = 0.8;
+  el.textContent = text;
+  return el;
+}
+
+function escapeHtml(s){
+  return (s||"").replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+}
+
+// Actions
+$("#btnRefresh").addEventListener("click", loadEmails);
+$("#btnRunAll").addEventListener("click", async () => {
+  const first = list.querySelector(".item");
+  if (first) first.click();
+});
+
+$("#btnReply").addEventListener("click", async () => {
+  if (!currentText) return;
+  replyBox.textContent = "";
+  showProgress();
+  try {
+    const r = await api("/reply", { text: currentText });
+    replyBox.textContent = r.reply || "(empty)";
+    hideProgress(true);
+  } catch (e) {
+    replyBox.textContent = "⚠️ Reply failed: " + e.message;
+    hideProgress(false);
   }
+});
 
-  function getSelectedText() {
-    if (selected >= 0 && emails[selected]?.text) return emails[selected].text;
-    const t = ($("manualText").value || "").trim();
-    return t || "";
+// Manual
+$("#btnManualSumm").addEventListener("click", async () => {
+  const t = $("#manual").value.trim();
+  if (!t) return;
+  const s = await api("/summarize", { text:t });
+  summaryBox.textContent = s.summary || "(no summary)";
+});
+$("#btnManualSent").addEventListener("click", async () => {
+  const t = $("#manual").value.trim();
+  if (!t) return;
+  const se = await api("/sentiment", { text:t });
+  renderSentiment(se);
+});
+$("#btnManualReply").addEventListener("click", async () => {
+  const t = $("#manual").value.trim();
+  if (!t) return;
+  replyBox.textContent = "";
+  showProgress();
+  try{
+    const r = await api("/reply", { text:t });
+    replyBox.textContent = r.reply || "(empty)";
+    hideProgress(true);
+  }catch(e){
+    replyBox.textContent = "⚠️ Reply failed: " + e.message;
+    hideProgress(false);
   }
+});
 
-  async function runSummary() {
-    const t = getSelectedText(); if (!t) return;
-    toggle(els.spSummary, true);
-    try {
-      const res = await fetch(`${baseUrl}/summarize`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ text: t })
-      });
-      const data = await res.json();
-      els.summary.textContent = data.summary || "(no summary)";
-    } finally { toggle(els.spSummary, false); }
-  }
-
-  async function runSentiment() {
-    const t = getSelectedText(); if (!t) return;
-    toggle(els.spSent, true);
-    try {
-      const res = await fetch(`${baseUrl}/sentiment`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ text: t })
-      });
-      const data = await res.json();
-      els.sentLabel.textContent = data.label || "-";
-      els.sentScore.textContent = typeof data.score === "number" ? data.score.toFixed(2) : "-";
-      els.sentCat.textContent = data.mapped_category || "-";
-      const wrap = document.querySelector(".analysis.card.sentiment");
-      wrap.classList.remove("positive","neutral","negative");
-      if (data.mapped_category) wrap.classList.add(data.mapped_category);
-    } finally { toggle(els.spSent, false); }
-  }
-
-  async function runReply() {
-    const t = getSelectedText(); if (!t) return;
-    toggle(els.spReply, true);
-    try {
-      const res = await fetch(`${baseUrl}/reply`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ text: t })
-      });
-      const data = await res.json();
-      els.reply.textContent = data.reply || "(no reply)";
-    } finally { toggle(els.spReply, false); }
-  }
-
-  function toggle(el, on) { el.classList.toggle("hidden", !on); }
-  function disableToolbar(on) {
-    ["btnRefresh","btnRunAll","btnSummary","btnSentiment","btnReply","btnUseManual"]
-      .forEach(id => { const b = $(id); if (b) b.disabled = on; });
-  }
-
-  // buttons
-  $("btnRefresh").addEventListener("click", fetchEmails);
-  $("btnSummary").addEventListener("click", runSummary);
-  $("btnSentiment").addEventListener("click", runSentiment);
-  $("btnReply").addEventListener("click", runReply);
-  $("btnRunAll").addEventListener("click", async () => {
-    await runSummary(); await runSentiment(); await runReply();
-  });
-  $("btnUseManual").addEventListener("click", () => {
-    const t = $("manualText").value || "";
-    emails = [{ subject: "Manual Text", snippet: t.slice(0,80).replace(/\n/g," "), text: t }];
-    renderList();
-    selectEmail(0);
-  });
-
-  // init
-  fetchEmails();
-})();
+// init
+loadEmails();
