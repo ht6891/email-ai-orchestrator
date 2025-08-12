@@ -9,15 +9,19 @@
       --card:#0b1220; --chip:#0f172a;
     }
     *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg);width:360px}
-    header{display:flex;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #1e293b}
-    header button{background:#0b1220;border:1px solid #1e293b;color:var(--fg);padding:8px 10px;border-radius:10px;cursor:pointer}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg);width:380px}
+    header{display:flex;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #1e293b;flex-wrap:wrap}
+    header .row{display:flex;gap:8px;align-items:center}
+    header button, select{
+      background:#0b1220;border:1px solid #1e293b;color:var(--fg);
+      padding:8px 10px;border-radius:10px;cursor:pointer
+    }
     header button:hover{border-color:#334155}
-    main{padding:12px}
 
+    main{padding:12px}
     .section{background:var(--panel);border:1px solid #1e293b;border-radius:14px;margin-bottom:12px}
     .section h3{margin:0;padding:10px 12px;border-bottom:1px solid #1e293b;color:#d1d5db;display:flex;align-items:center;gap:8px}
-    .cards{max-height:320px;overflow:auto;padding:10px}
+    .cards{max-height:280px;overflow:auto;padding:10px}
     .item{background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:10px;margin-bottom:10px;cursor:pointer}
     .item:hover{border-color:#334155}
     .item .subject{font-weight:600;font-size:14px}
@@ -25,26 +29,33 @@
 
     .result{padding:12px}
     .pill{display:inline-flex;align-items:center;gap:6px;background:#0f172a;border:1px solid #1e293b;border-radius:999px;padding:6px 10px;margin-right:6px;margin-top:6px;font-size:12px}
-
     textarea{width:100%;min-height:90px;background:#0b1220;color:var(--fg);border:1px solid #1e293b;border-radius:12px;padding:10px}
-    .actions{display:flex;gap:8px;margin-top:8px}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
     .btn{flex:1;background:#0b1220;border:1px solid #1e293b;color:var(--fg);padding:10px;border-radius:12px;cursor:pointer}
     .btn:hover{border-color:#334155}
+    pre{white-space:pre-wrap;background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:10px}
 
     /* Progress bar */
     .progress-wrap{display:none;align-items:center;gap:10px;background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:10px;margin-top:8px}
     .progress{position:relative;flex:1;height:8px;background:#0f172a;border-radius:999px;overflow:hidden}
     .bar{position:absolute;inset:0 100% 0 0;background:linear-gradient(90deg,#22d3ee,#60a5fa);border-radius:999px;transition:inset 0.28s ease}
     .progress-text{font-size:12px;color:#cbd5e1}
-    .hidden{display:none!important}
-
-    pre{white-space:pre-wrap;background:#0b1220;border:1px solid #1e293b;border-radius:12px;padding:10px}
   </style>
 </head>
 <body>
   <header>
-    <button id="btnRefresh">⟳ Refresh</button>
-    <button id="btnRunAll">Run All (Summary • Sentiment • Reply)</button>
+    <div class="row">
+      <button id="btnRefresh">⟳ Refresh</button>
+      <button id="btnRunAll">Run All</button>
+    </div>
+    <div class="row">
+      <label for="langSel">Language:</label>
+      <select id="langSel">
+        <option value="auto">Auto</option>
+        <option value="en">English</option>
+        <option value="ko">한국어</option>
+      </select>
+    </div>
   </header>
 
   <main>
@@ -54,9 +65,23 @@
     </section>
 
     <section class="section">
+      <h3>Email</h3>
+      <div class="result">
+        <pre id="emailBox">Select an email above.</pre>
+        <div class="actions">
+          <button class="btn" id="btnToEN">Translate → EN</button>
+          <button class="btn" id="btnToKO">Translate → KO</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
       <h3>Summary</h3>
       <div class="result">
-        <pre id="summaryBox">Select an email above.</pre>
+        <div class="actions">
+          <button class="btn" id="btnSumm">Summarize (use Language)</button>
+        </div>
+        <pre id="summaryBox"></pre>
       </div>
     </section>
 
@@ -71,27 +96,27 @@
       <h3>Reply</h3>
       <div class="result">
         <div class="actions">
-          <button class="btn" id="btnReply">Generate Reply</button>
+          <button class="btn" id="btnReply">Generate Reply (use Language)</button>
         </div>
-
-        <!-- Progress indicator -->
+        <!-- Progress indicator (fake %) -->
         <div class="progress-wrap" id="replyProgress">
           <div class="progress"><div class="bar" id="replyBar"></div></div>
           <span class="progress-text" id="replyPct">Generating… 0%</span>
         </div>
-
         <pre id="replyBox"></pre>
       </div>
     </section>
 
     <section class="section">
-      <h3>Manual Text Input</h3>
+      <h3>Manual Text</h3>
       <div class="result">
         <textarea id="manual"></textarea>
         <div class="actions">
           <button class="btn" id="btnManualSumm">Summarize</button>
           <button class="btn" id="btnManualSent">Sentiment</button>
           <button class="btn" id="btnManualReply">Reply</button>
+          <button class="btn" id="btnManToEN">→ EN</button>
+          <button class="btn" id="btnManToKO">→ KO</button>
         </div>
       </div>
     </section>
