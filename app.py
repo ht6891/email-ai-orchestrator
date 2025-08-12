@@ -13,6 +13,8 @@
 #   $ python app.py
 #
 
+import sys
+sys.dont_write_bytecode = True
 from flask import Flask, request, jsonify
 from transformers import pipeline
 from email_cleaner import remove_signature
