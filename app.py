@@ -29,7 +29,7 @@ except Exception:
     pass
 
 # Ollama 설정: 더 작은 모델 + 짧은 출력 + 낮은 temperature
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:4b")  # 설치된 작은 모델로 교체 (예: llama3.2:3b, qwen2:1.5b 등)
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")  # 설치된 작은 모델로 교체 (예: llama3.2:3b, qwen2:1.5b 등)
 OLLAMA_OPTS  = os.getenv("OLLAMA_OPTS",
                          "-o num_predict=120 -o temperature=0.2 -o top_p=0.9 -o num_thread=4 -o stop=Reply:")
 # num_predict: 생성 토큰 상한 ↓  / num_thread: CPU 코어에 맞춤
