@@ -22,11 +22,26 @@ except Exception:
 import os
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")  # tokenizer 경합 방지
 
+# ===== Device autodetect (GPU 우선) =====
 try:
     import torch
-    torch.set_num_threads(4)    # CPU 쓰레드 캡 (i5-8350U라면 4~6 권장)
+    _torch_ok = True
 except Exception:
-    pass
+    _torch_ok = False
+    torch = None  # 안전
+
+USE_CUDA = bool(_torch_ok and torch.cuda.is_available())
+if USE_CUDA:
+    DEVICE = 0          # transformers pipeline에서 GPU 사용
+else:
+    DEVICE = -1         # transformers pipeline에서 CPU 사용
+    # CPU만 사용할 때만 스레드 제한 (원하면 숫자 조정)
+    try:
+        n_threads = min(4, (os.cpu_count() or 4))
+        torch.set_num_threads(n_threads)
+    except Exception:
+        pass
+# =======================================
 
 # Ollama 설정: 더 작은 모델 + 짧은 출력 + 낮은 temperature
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")  # 설치된 작은 모델로 교체 (예: llama3.2:3b, qwen2:1.5b 등)

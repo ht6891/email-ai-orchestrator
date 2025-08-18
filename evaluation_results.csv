@@ -1,0 +1,22 @@
+﻿subject,lang_detected,len_words,sum_fast_ok,sum_fast_latency,sum_fast,sum_fast_comp,sum_llm_ok,sum_llm_latency,sum_llm,sum_llm_comp,sent_ok,sent_latency,sent_label,sent_score,sent_category,reply_en_ok,reply_en_latency,reply_en,reply_en_len,reply_en_dist1,reply_en_dist2,reply_ko_ok,reply_ko_latency,reply_ko,reply_ko_len,reply_ko_dist1,reply_ko_dist2,tr_en_ok,tr_en_latency,tr_en_lang,tr_ko_ok,tr_ko_latency,tr_ko_lang
+"Hello team,",en,102,True,8.942,Supriya Sonu can't access her folder even when she is in office. She can access it via the Supriya.sonu folder created by HyunTae last Wednesday.,0.2451,True,65.814,"Supriya Sonu is reporting an issue where she cannot access her folder, even while in the office. She can still access a folder created last Wednesday by HyunTae on a PC. Please investigate and resolve this access problem promptly.",0.3824,True,2.08,1 star,0.85,negative,True,75.784,"Subject: Re: Folder Access Issue
+
+Dear Supriya,
+
+Thank you for bringing this to our attention. We’ve received the screenshots and are investigating the issue with your folder access. We’ll look into this urgently and will keep you updated on our progress.
+
+Kind regards,
+
+[Your Name/IT Support Team] 
+
+--- 
+
+**Note:** I’ve kept the tone polite and professional, acknowledged receipt of the screenshots, and assured her that the issue is being investigated.",70,0.8429,0.9855,True,77.593,"안녕하세요, 수프리아 님.
+
+문의 주셔서 감사합니다. 첨부된 스크린샷을 확인했으며, 해당 문제를 즉시 조사하여 해결하도록 하겠습니다. 불편을 드려 죄송합니다.
+
+감사합니다.
+
+(Annyeonghaseyo, Supriya nim.
+
+Munui jusyeoseo gamsajeo sumgakdo chuekdo jeseo juyoheo haksuldo makeusigo haksuldo makeusigo habtseumnida. Bulmyeouldeureo joesonghamnida. Gamsahamnida.)",37,0.9189,0.9722,True,84.619,en,True,170.252,ko

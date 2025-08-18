@@ -1,182 +1,368 @@
 # evaluate.py
+# -----------------------------------------------------------------------------
+# Email AI Assistant 평가 스크립트
+# - 로컬 Flask API(app.py)와 통신하여 요약/감정/응답/번역 품질 및 성능 측정
+# - 결과를 CSV와 Markdown 리포트로 저장
+# -----------------------------------------------------------------------------
+# 사용법:
+#   1) Flask 서버 실행:  python app.py
+#   2) 이 스크립트 실행: python evaluate.py --limit 20
+#      (옵션) --source gmail  : gmail_service에서 최근 메일 사용
+#      (옵션) --source file   : ./test_emails.json 사용 (기본)
 #
-# Usage:
-#   $ pip install pandas
-#   $ python evaluate.py
-#
-# This script requires:
-#   - app.py (so that summarize_text and analyze_sentiment are in scope)
-#   - A JSON file (or embedded list) of sample emails with gold summaries + gold sentiment
-#
+# test_emails.json 포맷(옵션):
+# [
+#   {"text": "원문 이메일 내용...", "ref_summary": "사람이 쓴 정답 요약(있으면)", "lang":"ko|en"},
+#   ...
+# ]
+# -----------------------------------------------------------------------------
 
+import os
 import json
-import re
+import time
+import argparse
+import statistics
+from typing import List, Dict, Any
+
+import requests
 import pandas as pd
-from app import summarize_text, analyze_sentiment
 
-def jaccard_similarity(a: str, b: str) -> float:
+# ---- 선택 의존성: 없으면 자동 폴백 ------------------------------------------------
+try:
+    from rouge_score import rouge_scorer
+    ROUGE_OK = True
+except Exception:
+    ROUGE_OK = False
+
+try:
+    from langdetect import detect as lang_detect
+    LANG_OK = True
+except Exception:
+    LANG_OK = False
+
+BASE_URL = os.environ.get("EAA_BASE_URL", "http://localhost:5000")
+
+
+def safe_post(path: str, payload: Dict[str, Any], timeout=300) -> Dict[str, Any]:
+    url = f"{BASE_URL}{path}"
+    t0 = time.perf_counter()
+    try:
+        r = requests.post(url, json=payload, timeout=timeout)
+        latency = time.perf_counter() - t0
+        r.raise_for_status()
+        return {"ok": True, "json": r.json(), "latency": latency}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "latency": time.perf_counter() - t0}
+
+
+def safe_get(path: str, timeout=300) -> Dict[str, Any]:
+    url = f"{BASE_URL}{path}"
+    t0 = time.perf_counter()
+    try:
+        r = requests.get(url, timeout=timeout)
+        latency = time.perf_counter() - t0
+        r.raise_for_status()
+        return {"ok": True, "json": r.json(), "latency": latency}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "latency": time.perf_counter() - t0}
+
+
+def load_dataset(source: str, limit: int) -> List[Dict[str, Any]]:
     """
-    Compute Jaccard similarity between two texts a and b:
-    J(A,B) = |A ∩ B| / |A ∪ B|, where A and B are sets of tokens.
+    source == 'gmail'  : /api/emails에서 가져옴
+    source == 'file'   : ./test_emails.json에서 로드 (없으면 /api/emails 폴백)
     """
-    set_a = set(re.findall(r"\w+", a.lower()))
-    set_b = set(re.findall(r"\w+", b.lower()))
-    if not set_a and not set_b:
-        return 1.0
-    return len(set_a & set_b) / len(set_a | set_b)
+    items: List[Dict[str, Any]] = []
 
-def run_evaluation():
-    """
-    Load sample emails, run summarization & sentiment,
-    compute Jaccard and sentiment accuracy, and print results.
-    """
-    # Hardcode 20 sample email entries for evaluation, each with:
-    #   "email": str, "gold_summary": str, "gold_sentiment": "positive"/"neutral"/"negative"
+    if source == "gmail":
+        res = safe_get("/api/emails")
+        if res["ok"]:
+            for it in res["json"][:limit]:
+                items.append({"text": it.get("text", ""), "subject": it.get("subject", "")})
+        else:
+            print("[warn] /api/emails 실패:", res.get("error"))
+    else:
+        # file 우선
+        if os.path.exists("test_emails.json"):
+            try:
+                arr = json.load(open("test_emails.json", "r", encoding="utf-8"))
+                for it in arr[:limit]:
+                    items.append({
+                        "text": it.get("text", ""),
+                        "ref_summary": it.get("ref_summary", ""),
+                        "lang": it.get("lang", ""),
+                        "subject": it.get("subject", ""),
+                    })
+            except Exception as e:
+                print("[warn] test_emails.json 로드 실패:", e)
 
-    samples = [
-        {
-            "email": "Hi John, Can you review the attached report by tomorrow? We need to send it to the client. Thanks! Regards, Alice",
-            "gold_summary": "Alice requests John to review the attached report by tomorrow for client submission.",
-            "gold_sentiment": "positive"
-        },
-        {
-            "email": "Hello Team, I’m disappointed that the server was down last night for 3 hours. We lost many sales. Please address this ASAP. Thanks, Bob",
-            "gold_summary": "Bob reports server downtime of 3 hours, lost sales, and asks for immediate fix.",
-            "gold_sentiment": "negative"
-        },
-        {
-            "email": "Dear all, Thank you for attending yesterday’s meeting. The minutes are attached. Let me know if you have corrections. Best, Carol",
-            "gold_summary": "Carol thanks attendees, shares attached meeting minutes, and asks for corrections.",
-            "gold_sentiment": "neutral"
-        },
-        {
-            "email": "Hi, The Q1 sales numbers were excellent! We exceeded our target by 20%. Great work, team. Cheers, Diana",
-            "gold_summary": "Diana announces Q1 sales beat target by 20% and congratulates the team.",
-            "gold_sentiment": "positive"
-        },
-        {
-            "email": "Team, Please note: The build failed on Jenkins again. We cannot deploy until this is fixed. Urgent. Regards, Ethan",
-            "gold_summary": "Ethan reports Jenkins build failure, blocking deployment, calls for urgent fix.",
-            "gold_sentiment": "negative"
-        },
-        {
-            "email": "Hi! Please find the invoice for last month attached. Let me know if you need any clarifications. Thanks, Finance Dept",
-            "gold_summary": "Finance Dept sent last month’s invoice and invites questions.",
-            "gold_sentiment": "neutral"
-        },
-        {
-            "email": "Dear Sarah, Congratulations on your promotion! We’re thrilled to have you lead the marketing team. Best wishes, CEO",
-            "gold_summary": "CEO congratulates Sarah on her promotion to lead marketing.",
-            "gold_sentiment": "positive"
-        },
-        {
-            "email": "Hello, There will be a maintenance window this Saturday from 2 AM to 4 AM. Services may be unavailable. Apologies for inconvenience. IT Team",
-            "gold_summary": "IT Team announces Saturday maintenance window (2–4 AM) and warns of downtime.",
-            "gold_sentiment": "neutral"
-        },
-        {
-            "email": "Good afternoon, The office will be closed next Monday for a public holiday. Normal business resumes Tuesday. Regards, HR",
-            "gold_summary": "HR notifies that the office is closed next Monday for holiday; business resumes Tuesday.",
-            "gold_sentiment": "neutral"
-        },
-        {
-            "email": "Hi Team, We have a new security vulnerability reported. Please patch the servers by end of day. Urgent. Security Team",
-            "gold_summary": "Security Team reports new vulnerability and demands server patch by end of day.",
-            "gold_sentiment": "negative"
-        },
-        {
-            "email": "Dear All, Congratulations! Our paper was accepted at the IEEE conference next month. Let's prepare slides. Cheers, Alice",
-            "gold_summary": "Alice announces paper acceptance to IEEE conference and reminds team to prepare slides.",
-            "gold_sentiment": "positive"
-        },
-        {
-            "email": "Hello John, I am currently out of office until Friday. For urgent matters, contact Jane. Best, Michael",
-            "gold_summary": "Michael is out of office until Friday and directs urgent issues to Jane.",
-            "gold_sentiment": "neutral"
-        },
-        {
-            "email": "Team, We missed our monthly KPI targets again. Sales dropped by 10%. We must come up with a new strategy. Regards, Director",
-            "gold_summary": "Director laments missing KPI targets, notes 10% sales drop, and calls for new strategy.",
-            "gold_sentiment": "negative"
-        },
-        {
-            "email": "Hi Mary, Thank you for the comprehensive handover document. I’ll review it tonight and get back to you. Best, Tom",
-            "gold_summary": "Tom thanks Mary for handover document and promises to review it tonight.",
-            "gold_sentiment": "positive"
-        },
-        {
-            "email": "Dear Vendor, We did not receive the shipment you promised last week. This delay is unacceptable. Please respond by EOD. Sincerely, Ops",
-            "gold_summary": "Ops complains vendor shipment is overdue, deems delay unacceptable, and demands response by EOD.",
-            "gold_sentiment": "negative"
-        },
-        {
-            "email": "Greetings, We will have a team‐building event this Friday in the conference room. Bring your ideas for activities. Cheers, Event Coordinator",
-            "gold_summary": "Event Coordinator announces Friday team-building event in conference room and asks for activity ideas.",
-            "gold_sentiment": "positive"
-        },
-        {
-            "email": "Hi Sam, I noticed several typos in the last presentation deck. Can you correct them before tomorrow’s client call? Regards, QA Lead",
-            "gold_summary": "QA Lead points out typos in presentation deck and asks Sam to correct before tomorrow’s client call.",
-            "gold_sentiment": "neutral"
-        },
-        {
-            "email": "Team, The customer escalated due to slow response on ticket #1234. We need to prioritize this now. Thanks, Support Lead",
-            "gold_summary": "Support Lead reports customer escalation on ticket #1234 and instructs team to prioritize it immediately.",
-            "gold_sentiment": "negative"
-        },
-        {
-            "email": "Hello, Our annual performance reviews are next week. Please submit your self‐evaluation by Wednesday. HR Team",
-            "gold_summary": "HR Team informs that annual performance reviews are next week and asks for self‐evaluations by Wednesday.",
-            "gold_sentiment": "neutral"
-        },
-        {
-            "email": "Hi, FYI, the DevOps script now auto‐restarts the server if it crashes. No manual intervention needed. Cheers, DevOps",
-            "gold_summary": "DevOps announces new script auto‐restarts server on crash, eliminating need for manual intervention.",
-            "gold_sentiment": "positive"
-        }
-    ]
+        # 폴백: API
+        if not items:
+            res = safe_get("/api/emails")
+            if res["ok"]:
+                for it in res["json"][:limit]:
+                    items.append({"text": it.get("text", ""), "subject": it.get("subject", "")})
+            else:
+                print("[warn] /api/emails 실패:", res.get("error"))
 
-    results = []
-    correct_sentiment = 0
+    # 간단 정리
+    items = [it for it in items if (it.get("text") or "").strip()]
+    return items[:limit]
 
-    for idx, entry in enumerate(samples):
-        email_text = entry["email"]
-        gold_sum = entry["gold_summary"]
-        gold_sent = entry["gold_sentiment"]
 
-        # Summarization
-        generated_sum = summarize_text(email_text)
-        j_score = round(jaccard_similarity(generated_sum, gold_sum), 2)
+def detect_lang(text: str) -> str:
+    if not LANG_OK:
+        # 간단 휴리스틱
+        return "ko" if any("\uac00" <= ch <= "\ud7af" for ch in text) else "en"
+    try:
+        return lang_detect(text)
+    except Exception:
+        return "unknown"
 
-        # Sentiment
-        sent_out = analyze_sentiment(email_text)
-        pred_cat = sent_out["mapped_category"]
-        if pred_cat == gold_sent:
-            correct_sentiment += 1
 
-        results.append({
-            "Index": idx + 1,
-            "Email": email_text.replace("\n", " "),
-            "Gold Summary": gold_sum,
-            "Gen. Summary": generated_sum,
-            "Jaccard": j_score,
-            "Gold Sentiment": gold_sent,
-            "Pred Sentiment": pred_cat,
-            "Sent Label": sent_out.get("label", ""),
-            "Sent Score": round(sent_out.get("score", 0), 2)
-        })
+def compute_rouge(sys_sum: str, ref_sum: str) -> Dict[str, float]:
+    if not ROUGE_OK or not ref_sum or not sys_sum:
+        return {}
+    scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
+    scores = scorer.score(ref_sum, sys_sum)
+    # F1 기준만 취합
+    return {k: round(v.fmeasure, 4) for k, v in scores.items()}
 
-    df = pd.DataFrame(results)
-    accuracy = correct_sentiment / len(samples)
-    print("\n===== Evaluation Results =====\n")
-    print(df[[
-        "Index", "Jaccard", "Gold Sentiment", "Pred Sentiment",
-        "Sent Label", "Sent Score"
-    ]].to_markdown(index=False))
 
-    print(f"\nOverall Sentiment Accuracy: {accuracy:.2f} ({correct_sentiment}/{len(samples)})\n")
-    print(df[["Index", "Email", "Gold Summary", "Gen. Summary"]].to_markdown(index=False))
+def compression_ratio(src: str, summ: str) -> float:
+    src_len = max(1, len((src or "").split()))
+    summ_len = max(1, len((summ or "").split()))
+    return round(summ_len / src_len, 4)
+
+
+def distinct_n(text: str, n: int) -> float:
+    tokens = (text or "").split()
+    if len(tokens) < n:
+        return 0.0
+    ngrams = set(tuple(tokens[i:i+n]) for i in range(len(tokens)-n+1))
+    return round(len(ngrams) / max(1, (len(tokens)-n+1)), 4)
+
+
+def evaluate_item(item: Dict[str, Any]) -> Dict[str, Any]:
+    text = item.get("text", "")
+    subject = item.get("subject", "")
+    ref_summary = item.get("ref_summary", "")
+    lang_hint = item.get("lang", "")  # optional
+
+    out: Dict[str, Any] = {
+        "subject": subject[:80],
+        "lang_detected": detect_lang(text),
+        "len_words": len(text.split()),
+    }
+
+    # 1) Fast summary
+    r1 = safe_post("/summarize", {"text": text})
+    out["sum_fast_ok"] = r1["ok"]
+    out["sum_fast_latency"] = round(r1.get("latency", 0.0), 3)
+    sum_fast = (r1.get("json", {}) or {}).get("summary", "") if r1["ok"] else ""
+    out["sum_fast"] = sum_fast
+    out["sum_fast_comp"] = compression_ratio(text, sum_fast)
+    if ref_summary:
+        rouge = compute_rouge(sum_fast, ref_summary)
+        out["sum_fast_rouge1"] = rouge.get("rouge1", "")
+        out["sum_fast_rouge2"] = rouge.get("rouge2", "")
+        out["sum_fast_rougeL"] = rouge.get("rougeL", "")
+
+    # 2) LLM summary
+    r2 = safe_post("/summarize_llm", {"text": text})
+    out["sum_llm_ok"] = r2["ok"]
+    out["sum_llm_latency"] = round(r2.get("latency", 0.0), 3)
+    sum_llm = (r2.get("json", {}) or {}).get("summary", "") if r2["ok"] else ""
+    out["sum_llm"] = sum_llm
+    out["sum_llm_comp"] = compression_ratio(text, sum_llm)
+    if ref_summary:
+        rouge = compute_rouge(sum_llm, ref_summary)
+        out["sum_llm_rouge1"] = rouge.get("rouge1", "")
+        out["sum_llm_rouge2"] = rouge.get("rouge2", "")
+        out["sum_llm_rougeL"] = rouge.get("rougeL", "")
+
+    # 3) Sentiment
+    r3 = safe_post("/sentiment", {"text": text})
+    out["sent_ok"] = r3["ok"]
+    out["sent_latency"] = round(r3.get("latency", 0.0), 3)
+    if r3["ok"]:
+        js = r3.get("json", {})
+        out["sent_label"] = js.get("label", "")
+        out["sent_score"] = js.get("score", "")
+        out["sent_category"] = js.get("mapped_category", "")
+
+    # 4) Reply (영/한 모두 측정)
+    r4_en = safe_post("/reply", {"text": text, "lang": "en"})
+    out["reply_en_ok"] = r4_en["ok"]
+    out["reply_en_latency"] = round(r4_en.get("latency", 0.0), 3)
+    reply_en = (r4_en.get("json", {}) or {}).get("reply", "") if r4_en["ok"] else ""
+    out["reply_en"] = reply_en
+    out["reply_en_len"] = len(reply_en.split())
+    out["reply_en_dist1"] = distinct_n(reply_en, 1)
+    out["reply_en_dist2"] = distinct_n(reply_en, 2)
+
+    r4_ko = safe_post("/reply", {"text": text, "lang": "ko"})
+    out["reply_ko_ok"] = r4_ko["ok"]
+    out["reply_ko_latency"] = round(r4_ko.get("latency", 0.0), 3)
+    reply_ko = (r4_ko.get("json", {}) or {}).get("reply", "") if r4_ko["ok"] else ""
+    out["reply_ko"] = reply_ko
+    out["reply_ko_len"] = len(reply_ko.split())
+    out["reply_ko_dist1"] = distinct_n(reply_ko, 1)
+    out["reply_ko_dist2"] = distinct_n(reply_ko, 2)
+
+    # 5) 번역(양방향) — 짧게 측정
+    #   감점/보너스용 단순 품질 신호: 번역 후 언어 변화 여부
+    # 영어로
+    tr_en = safe_post("/translate_llm", {"text": text, "target_lang": "en"})
+    out["tr_en_ok"] = tr_en["ok"]
+    out["tr_en_latency"] = round(tr_en.get("latency", 0.0), 3)
+    tr_en_txt = (tr_en.get("json", {}) or {}).get("translated", "") if tr_en["ok"] else ""
+    out["tr_en_lang"] = detect_lang(tr_en_txt) if tr_en_txt else ""
+
+    # 한국어로
+    tr_ko = safe_post("/translate_llm", {"text": text, "target_lang": "ko"})
+    out["tr_ko_ok"] = tr_ko["ok"]
+    out["tr_ko_latency"] = round(tr_ko.get("latency", 0.0), 3)
+    tr_ko_txt = (tr_ko.get("json", {}) or {}).get("translated", "") if tr_ko["ok"] else ""
+    out["tr_ko_lang"] = detect_lang(tr_ko_txt) if tr_ko_txt else ""
+
+    return out
+
+
+def summarize_table(df: pd.DataFrame) -> str:
+    lines = []
+    n = len(df)
+
+    def m(series, f):
+        vals = [v for v in series if isinstance(v, (int, float))]
+        return round(f(vals), 3) if vals else "-"
+
+    lines.append(f"- Samples evaluated: **{n}**")
+    # 성공률
+    for key, label in [
+        ("sum_fast_ok", "Summary(Fast) success"),
+        ("sum_llm_ok", "Summary(LLM) success"),
+        ("sent_ok", "Sentiment success"),
+        ("reply_en_ok", "Reply EN success"),
+        ("reply_ko_ok", "Reply KO success"),
+        ("tr_en_ok", "Translate→EN success"),
+        ("tr_ko_ok", "Translate→KO success"),
+    ]:
+        if key in df.columns:
+            rate = round(100 * df[key].fillna(False).mean(), 1)
+            lines.append(f"- {label}: **{rate}%**")
+
+    # 지연시간
+    for key, label in [
+        ("sum_fast_latency", "Latency Summary(Fast) [s]"),
+        ("sum_llm_latency", "Latency Summary(LLM) [s]"),
+        ("sent_latency", "Latency Sentiment [s]"),
+        ("reply_en_latency", "Latency Reply EN [s]"),
+        ("reply_ko_latency", "Latency Reply KO [s]"),
+        ("tr_en_latency", "Latency Translate→EN [s]"),
+        ("tr_ko_latency", "Latency Translate→KO [s]"),
+    ]:
+        if key in df.columns:
+            vals = [v for v in df[key].tolist() if isinstance(v, (int, float))]
+            if vals:
+                lines.append(f"- {label}: mean **{round(statistics.mean(vals),3)}**, median **{round(statistics.median(vals),3)}**")
+
+    # 요약 압축률(낮을수록 더 축약)
+    for key, label in [
+        ("sum_fast_comp", "Compression(Fast)"),
+        ("sum_llm_comp", "Compression(LLM)"),
+    ]:
+        if key in df.columns:
+            vals = [v for v in df[key].tolist() if isinstance(v, (int, float))]
+            if vals:
+                lines.append(f"- {label}: mean **{round(statistics.mean(vals),3)}**")
+
+    # ROUGE (있을 경우)
+    if "sum_fast_rouge1" in df.columns:
+        for rkey in ["sum_fast_rouge1","sum_fast_rouge2","sum_fast_rougeL",
+                     "sum_llm_rouge1","sum_llm_rouge2","sum_llm_rougeL"]:
+            if rkey in df.columns:
+                vals = [v for v in df[rkey].tolist() if isinstance(v, (int, float))]
+                if vals:
+                    lines.append(f"- {rkey}: mean **{round(statistics.mean(vals),3)}**")
+
+    # Reply 다양성
+    for key, label in [
+        ("reply_en_dist1","Reply EN Dist-1"),
+        ("reply_en_dist2","Reply EN Dist-2"),
+        ("reply_ko_dist1","Reply KO Dist-1"),
+        ("reply_ko_dist2","Reply KO Dist-2"),
+    ]:
+        if key in df.columns:
+            vals = [v for v in df[key].tolist() if isinstance(v, (int, float))]
+            if vals:
+                lines.append(f"- {label}: mean **{round(statistics.mean(vals),3)}**")
+
+    return "\n".join(lines)
+
+
+def write_markdown_report(df: pd.DataFrame, path_md="evaluation_report.md"):
+    md = []
+    md.append("# Email AI Assistant — Evaluation Report\n")
+    md.append(f"Generated at: `{time.strftime('%Y-%m-%d %H:%M:%S')}`\n")
+    md.append("## Summary\n")
+    md.append(summarize_table(df) + "\n")
+
+    md.append("## Methodology\n")
+    md.append(
+        "- Fast Summary: 사전 구축된 추출/압축 요약 파이프라인 호출\n"
+        "- LLM Summary: LLM을 이용한 요약 API(`/summarize_llm`) 호출\n"
+        "- Sentiment: 다국어 감정 모델 + 휴리스틱 사후보정(`/sentiment`)\n"
+        "- Reply: 영어/한국어 2종 생성(`/reply?lang=en|ko`) 후 길이/다양성 지표 산출\n"
+        "- Translate: LLM 번역(`/translate_llm`) 후 언어감지로 결과 확인\n"
+        "- 지연시간: 각 API 호출 벽시계 기준 측정\n"
+        "- (선택) ROUGE: test_emails.json에 ref_summary가 있을 경우 계산\n"
+    )
+
+    md.append("## Sample Rows (first 5)\n")
+    md.append(df.head(5).to_markdown(index=False))
+
+    with open(path_md, "w", encoding="utf-8") as f:
+        f.write("\n\n".join(md))
+    print(f"[ok] Markdown report saved -> {path_md}")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--source", choices=["file","gmail"], default="file",
+                    help="평가 데이터 소스(file: test_emails.json, gmail: /api/emails)")
+    ap.add_argument("--limit", type=int, default=20, help="평가할 샘플 개수")
+    ap.add_argument("--out_csv", default="evaluation_results.csv")
+    ap.add_argument("--out_md", default="evaluation_report.md")
+    args = ap.parse_args()
+
+    print(f"[info] BASE_URL = {BASE_URL}")
+    print(f"[info] loading dataset from: {args.source}")
+
+    items = load_dataset(args.source, args.limit)
+    if not items:
+        print("[error] 평가할 데이터가 없습니다.")
+        return
+
+    rows = []
+    for i, it in enumerate(items, 1):
+        print(f"  - evaluating {i}/{len(items)} …")
+        try:
+            rows.append(evaluate_item(it))
+        except Exception as e:
+            print("    [warn] item failed:", e)
+            rows.append({"subject":"(error)", "error": str(e)})
+
+    df = pd.DataFrame(rows)
+    df.to_csv(args.out_csv, index=False, encoding="utf-8-sig")
+    print(f"[ok] CSV saved -> {args.out_csv}")
+
+    write_markdown_report(df, args.out_md)
+
+    print("\n[done] Evaluation complete.")
+    print("  - Use the Markdown report for your project write-up.")
+    print("  - Attach CSV as raw results appendix if needed.")
 
 
 if __name__ == "__main__":
-    run_evaluation()
+    main()
