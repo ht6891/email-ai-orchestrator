@@ -11,7 +11,7 @@ from typing import List
 from flask import Flask, request, jsonify, Response, stream_with_context
 from transformers import pipeline
 
-# (선택) 내장 시그니처 제거기 사용 중이면 유지
+# Use Built-in Signature Remover
 try:
     from email_cleaner import remove_signature
 except Exception:
@@ -22,20 +22,20 @@ except Exception:
 import os
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")  # tokenizer 경합 방지
 
-# ===== Device autodetect (GPU 우선) =====
+# ===== Device Autodetect (GPU Priority) =====
 try:
     import torch
     _torch_ok = True
 except Exception:
     _torch_ok = False
-    torch = None  # 안전
+    torch = None  # Safety
 
 USE_CUDA = bool(_torch_ok and torch.cuda.is_available())
 if USE_CUDA:
-    DEVICE = 0          # transformers pipeline에서 GPU 사용
+    DEVICE = 0          # Using GPU in Transformers Pipeline
 else:
-    DEVICE = -1         # transformers pipeline에서 CPU 사용
-    # CPU만 사용할 때만 스레드 제한 (원하면 숫자 조정)
+    DEVICE = -1         # Using CPU in Transformers Pipeline
+    # Limit threads only when using CPU (adjust number if desired)
     try:
         n_threads = min(4, (os.cpu_count() or 4))
         torch.set_num_threads(n_threads)
@@ -43,19 +43,19 @@ else:
         pass
 # =======================================
 
-# Ollama 설정: 더 작은 모델 + 짧은 출력 + 낮은 temperature
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")  # 설치된 작은 모델로 교체 (예: llama3.2:3b, qwen2:1.5b 등)
+# Ollama Settings: Smaller Model + Shorter Output + Lower Temperature
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")  # Replace with smaller installed model if needed (e.g., llama3.2:3b, qwen2:1.5b)
 OLLAMA_OPTS  = os.getenv("OLLAMA_OPTS",
                          "-o num_predict=120 -o temperature=0.2 -o top_p=0.9 -o num_thread=4 -o stop=Reply:")
-# num_predict: 생성 토큰 상한 ↓  / num_thread: CPU 코어에 맞춤
+# num_predict: Lower max generated tokens  / num_thread: Match CPU cores
 
 app = Flask(__name__)
 
 # ----------------------------
 # Summarization models (EN / KO)
 # ----------------------------
-EN_SUM_MODEL = "philschmid/bart-large-cnn-samsum"          # 영어 대화/메일 요약
-KO_SUM_MODEL = "csebuetnlp/mT5_multilingual_XLSum"         # 다국어 요약(ko 포함)
+EN_SUM_MODEL = "philschmid/bart-large-cnn-samsum"          # English Conversation/Email Summarisation
+KO_SUM_MODEL = "csebuetnlp/mT5_multilingual_XLSum"         # Multilingual Summarization (including ko)
 
 def _load_pipe(task, model):
     try:
@@ -111,24 +111,24 @@ def _summarize_once(pipe, text: str, *, max_len: int, min_len: int) -> str:
 def summarize_text(text: str, lang: str = "auto", mode: str = "hybrid") -> str:
     """
     lang: auto|en|ko
-    mode: hybrid|llm|fast  (이 값은 길이/속도 튜닝용 힌트로만 사용)
+    mode: hybrid|llm|fast  (This value is only a hint for length/speed tuning)
     """
     raw = (text or "").strip()
     if not raw:
         return ""
 
-    # 언어 결정
+    # Language Detection
     use_ko = (lang == "ko") or (lang == "auto" and _is_korean(raw))
     pipe = ko_summarizer if use_ko else en_summarizer
     if pipe is None:
         return _fallback_extractive(raw)
 
-    # 모델 별 입력 한도
+    # Input Limits per Model
     default_cap = 512 if use_ko else 1024
     max_in = _safe_model_max(pipe, default_cap)
     max_chunk_tokens = max(128, min(max_in - 32, default_cap - 32))
 
-    # 모드별 요약 길이(경험치 기반 대략)
+    # Summary Length by Mode (approximate, based on experience)
     if mode == "fast":
         first_pass_max = 45 if use_ko else 48
         first_pass_min = 10
@@ -139,23 +139,23 @@ def summarize_text(text: str, lang: str = "auto", mode: str = "hybrid") -> str:
         first_pass_min = 18
         final_max = 80 if use_ko else 75
         final_min = 20
-    else:  # hybrid(기본)
+    else:  # hybrid(default)
         first_pass_max = 55 if use_ko else 58
         first_pass_min = 14
         final_max = 68 if use_ko else 65
         final_min = 18
 
     try:
-        # 토큰 분할
+        # Token Splitting
         chunks = _chunk_by_tokens(raw, pipe.tokenizer, max_chunk_tokens, overlap=50)
         if not chunks:
             return _fallback_extractive(raw)
 
-        # 조각이 1개면 단일 요약
+        # Single summary if only 1 chunk
         if len(chunks) == 1:
             return _summarize_once(pipe, chunks[0], max_len=final_max, min_len=final_min)
 
-        # 1차: 각 조각 요약
+        # Step 1: Summarize Each Chunk
         part_sums = []
         for c in chunks:
             try:
@@ -167,7 +167,7 @@ def summarize_text(text: str, lang: str = "auto", mode: str = "hybrid") -> str:
 
         combined = " ".join(part_sums)
 
-        # 2차: 합본이 너무 길면 다시 축약
+        # Step 2: If combined summary is too long, shorten again
         if len(part_sums) > 2 or len(combined) > 1500:
             comb_chunks = _chunk_by_tokens(combined, pipe.tokenizer, max_chunk_tokens, overlap=20)
             comb_sums = []
@@ -178,7 +178,7 @@ def summarize_text(text: str, lang: str = "auto", mode: str = "hybrid") -> str:
                     comb_sums.append(_fallback_extractive(cc, max_sent=1))
             combined = " ".join([s for s in comb_sums if s.strip()])
 
-        # 최종 정제
+        # Final Refinement
         final = _summarize_once(pipe, combined, max_len=final_max, min_len=final_min)
         return final or _fallback_extractive(raw)
 
@@ -249,7 +249,7 @@ def _strip_ansi(s: str) -> str:
 
 def _ollama_stream(prompt: str):
     """
-    ollama를 라인/청크 단위로 읽어서 SSE로 전달.
+    Read Ollama output line/chunk by line and deliver via SSE.
     """
     cmd = "ollama run gemma3:4b"
     proc = subprocess.Popen(
@@ -270,7 +270,7 @@ def _ollama_stream(prompt: str):
             chunk = _strip_ansi(line.rstrip("\r\n"))
             if chunk:
                 yield f"data: {chunk}\n\n"
-            # 3초마다 하트비트
+            # Heartbeat every 3 seconds
             now = time.time()
             if now - last_ping > 3:
                 yield "event: ping\ndata: keepalive\n\n"
@@ -323,18 +323,18 @@ Reply:
         return f"⚠️ Unexpected error: {e}"
     
 
-# --- add: LLM 요약 함수 ---
+# --- Add: LLM Summarization Function ---
 def summarize_llm_ollama(text: str, max_chars: int = 2000) -> str:
     """
-    Ollama 로컬 LLM으로 더 정밀한 요약.
-    - 입력은 시그니처 제거 후 길이 제한
-    - 원문의 언어를 유지해서 2~3문장으로 요약하도록 지시
+    More precise summarization with Ollama local LLM.
+    - Input after signature removal and length limit
+    - Instruct to summarize in 2–3 sentences while keeping the original language
     """
     cleaned = remove_signature(text or "").strip()
     if not cleaned:
         return ""
 
-    # 너무 긴 입력은 잘라서 속도/품질 안정
+    # Cut overly long input for speed/quality stability
     cleaned = cleaned[:max_chars]
 
     prompt = f"""You are a helpful assistant.
@@ -350,7 +350,6 @@ Summary:
 """
 
     try:
-        # 원하는 모델로 변경 가능: e.g. "ollama run llama3:8b"
         cmd = "ollama run gemma3:4b"
         proc = subprocess.run(
             shlex.split(cmd),
@@ -361,15 +360,15 @@ Summary:
             timeout=120
         )
         if proc.returncode != 0:
-            # ollama 실행 에러
+            # Ollama Runtime Error
             return f"⚠️ LLM error: {proc.stderr.strip() or 'unknown error'}"
         out = (proc.stdout or "").strip()
 
-        # 모델이 프롬프트 일부를 에코한 경우 정리
+        # Clean up if the model echoed part of the prompt
         if "Summary:" in out:
             out = out.split("Summary:", 1)[-1].strip()
 
-        # 가끔 템플릿 문구가 딸려오는 걸 정리
+        # Clean up occasional template phrases
         bad_heads = ("Please provide", "I cannot")
         if any(out.startswith(h) for h in bad_heads):
             return "⚠️ The model did not return a valid summary. Try again with clearer input."
@@ -380,13 +379,13 @@ Summary:
     except Exception as e:
         return f"⚠️ Unexpected error: {e}"
     
-# --- add: LLM 번역 함수 ---
+# --- Add: LLM Translation Function ---
 def translate_llm_ollama(text: str, target_lang: str = "en", max_chars: int = 2000) -> str:
     """
-    Ollama LLM을 이용한 간단한 번역.
-    - target_lang: 'en' 또는 'ko'
-    - 입력 길이 제한으로 속도/안정성 확보
-    - 출력은 번역문만 (설명/주석 금지)
+    Simple translation using Ollama LLM.
+    - target_lang: 'en' or 'ko'
+    - Limit input length for speed/stability
+    - Output translation only (no explanations/notes)
     """
     source = (text or "").strip()
     if not source:
@@ -409,7 +408,7 @@ Preserve key details such as names, dates, times, amounts, and URLs. Keep format
 """
 
     try:
-        cmd = "ollama run gemma3:4b"  # 필요시 llama3:8b 등으로 교체 가능
+        cmd = "ollama run gemma3:4b"
         proc = subprocess.run(
             shlex.split(cmd),
             input=prompt,
@@ -423,7 +422,7 @@ Preserve key details such as names, dates, times, amounts, and URLs. Keep format
 
         out = (proc.stdout or "").strip()
 
-        # 모델이 쓸데없는 머리말을 붙였으면 제거 시도
+        # Attempt to remove unnecessary preface if model adds one
         bad_heads = ("Translation:", "Result:", "Output:", "Please provide")
         for h in bad_heads:
             if out.startswith(h):
@@ -435,7 +434,7 @@ Preserve key details such as names, dates, times, amounts, and URLs. Keep format
     except Exception as e:
         return f"⚠️ Unexpected error: {e}"
 
-# --- add: Flask 엔드포인트 ---
+# --- Add: Flask Endpoint ---
 @app.route("/translate_llm", methods=["POST"])
 def translate_llm_endpoint():
     data = (request.json or {})
@@ -505,10 +504,10 @@ Reply:
     return Response(stream_with_context(_ollama_stream(refined_prompt)),
                     mimetype="text/event-stream", headers=headers)
 
-# 이메일 목록(요약 전)
+# Email List (before summarisation)
 @app.route("/api/emails", methods=["GET"])
 def api_emails():
-    # run_fetch.py 안에 fetch_emails(max_results=N) 함수가 있다고 가정
+    # Assume fetch_emails(max_results=N) function exists in run_fetch.py
     from run_fetch import fetch_emails
     raw_emails = fetch_emails(max_results=20)
     items = []
@@ -526,7 +525,7 @@ def api_emails():
         })
     return jsonify(items)
 
-# 수동 텍스트 처리(요약+감정)
+# Manual Text Processing (Summarisation + Sentiment)
 @app.route("/process", methods=["POST"])
 def process_input():
     data = (request.json or {})
@@ -540,6 +539,6 @@ def process_input():
     })
 
 if __name__ == "__main__":
-    # 필요 시, 간단한 CORS 열어두기:
+    # If needed, enable simple CORS:
     # from flask_cors import CORS; CORS(app)
     app.run(host="0.0.0.0", port=5000, debug=True)

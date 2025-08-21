@@ -1,40 +1,34 @@
-# Flask server
-flask==2.3.3
-flask-cors==4.0.0
-werkzeug==2.3.7
+# --- Core API / Server ---
+Flask==3.0.3
+flask-cors==4.0.1
+python-dotenv==1.0.1
+requests==2.32.3
 
-# Gmail API
-google-api-python-client==2.137.0
-google-auth==2.34.0
-google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.1
+# --- ML stack (Hugging Face + PyTorch) ---
+transformers==4.43.3
+torch>=2.2.0           # CPU wheels available; use GPU build if you have CUDA/Metal
+accelerate==0.33.0
+safetensors>=0.4.3
+huggingface-hub>=0.24.0
+sentencepiece>=0.1.99  # required for mT5
+tokenizers>=0.15.2
 
-# NLP / AI Models
-transformers==4.45.1
-torch>=2.0.0
-sentencepiece==0.2.0
-sacremoses==0.1.1
+# --- Evaluation / Data ---
+numpy>=1.26.4
+pandas>=2.2.2
+scikit-learn>=1.5.1
+evaluate==0.4.2        # HF evaluate; optional but useful
+rouge-score>=0.1.2
+tqdm>=4.66.4
 
-# Tokenizer & Language
-langdetect==1.0.9
-nltk==3.9.1
-spacy==3.7.5
+# --- HTML / Email Cleaning ---
+beautifulsoup4>=4.12.3
 
-# Data / Utils
-numpy>=1.24.0
-pandas>=2.0.0
-tqdm>=4.66.0
+# --- Gmail API (optional ingestion for /api/emails) ---
+google-api-python-client>=2.137.0
+google-auth>=2.33.0
+google-auth-oauthlib>=1.2.1
+google-auth-httplib2>=0.2.0
 
-# Evaluation
-rouge-score==0.1.2
-scikit-learn>=1.3.0
-
-# For async / requests
-requests>=2.31.0
-httpx>=0.27.0
-
-# For frontend packaging (optional)
-jinja2>=3.1.0
-
-# To ensure compatibility (google-api + transformers)
-protobuf<4.0.0
+# --- Ollama Python client (optional; local LLM via Ollama) ---
+ollama>=0.3.0

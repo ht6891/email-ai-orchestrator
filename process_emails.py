@@ -9,18 +9,18 @@ import requests
 from gmail_service import get_recent_emails
 from email_cleaner import remove_signature
 
-API_URL = "http://localhost:5000"  # Flask 앱이 실행 중이어야 함
+API_URL = "http://localhost:5000"  # Flask app must be running
 
 def process_email(email_text):
-    # 1. 요약 요청
+    # 1. Summarisation Request
     summ_res = requests.post(f"{API_URL}/summarize", json={"text": email_text})
     summary = summ_res.json().get("summary", "N/A")
 
-    # 2. 감정 분석 요청
+    # 2. Sentiment Analysis Request
     sent_res = requests.post(f"{API_URL}/sentiment", json={"text": email_text})
     sentiment = sent_res.json()
 
-    # 3. 답장 생성 요청
+    # 3. Reply Generation Request
     reply_res = requests.post(f"{API_URL}/reply", json={"text": email_text})
     reply = reply_res.json().get("reply", "N/A")
 
@@ -33,7 +33,7 @@ if __name__ == "__main__":
         print(f"\n===== Email {i} =====")
         print(f"📩 Original:\n{email[:500]}...\n")
 
-    # ✅ 시그니처 제거
+    # Signature Removal
         cleaned_email = remove_signature(email)
         print(f"📩 Cleaned:\n{cleaned_email[:500]}...\n")
 

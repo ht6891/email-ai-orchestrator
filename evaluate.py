@@ -1,18 +1,18 @@
 # evaluate.py
 # -----------------------------------------------------------------------------
-# Email AI Assistant 평가 스크립트
-# - 로컬 Flask API(app.py)와 통신하여 요약/감정/응답/번역 품질 및 성능 측정
-# - 결과를 CSV와 Markdown 리포트로 저장
+# Email AI Assistant Evaluation Script
+# - Communicates with local Flask API (app.py) to measure quality/performance of summarization, sentiment, reply, and translation
+# - Saves results as CSV and Markdown report
 # -----------------------------------------------------------------------------
-# 사용법:
-#   1) Flask 서버 실행:  python app.py
-#   2) 이 스크립트 실행: python evaluate.py --limit 20
-#      (옵션) --source gmail  : gmail_service에서 최근 메일 사용
-#      (옵션) --source file   : ./test_emails.json 사용 (기본)
+# Usage:
+#   1) Run Flask server:  python app.py
+#   2) Run this script:  python evaluate.py --limit 20
+#      (option) --source gmail  : use recent emails from gmail_service
+#      (option) --source file   : use ./test_emails.json (default)
 #
-# test_emails.json 포맷(옵션):
+# test_emails.json format (optional):
 # [
-#   {"text": "원문 이메일 내용...", "ref_summary": "사람이 쓴 정답 요약(있으면)", "lang":"ko|en"},
+#   {"text": "original email content...", "ref_summary": "human-written reference summary (if available)", "lang":"ko|en"},
 #   ...
 # ]
 # -----------------------------------------------------------------------------
@@ -27,7 +27,7 @@ from typing import List, Dict, Any
 import requests
 import pandas as pd
 
-# ---- 선택 의존성: 없으면 자동 폴백 ------------------------------------------------
+# ---- Optional Dependencies: auto-fallback if not available -------------------
 try:
     from rouge_score import rouge_scorer
     ROUGE_OK = True
@@ -69,8 +69,8 @@ def safe_get(path: str, timeout=300) -> Dict[str, Any]:
 
 def load_dataset(source: str, limit: int) -> List[Dict[str, Any]]:
     """
-    source == 'gmail'  : /api/emails에서 가져옴
-    source == 'file'   : ./test_emails.json에서 로드 (없으면 /api/emails 폴백)
+    source == 'gmail'  : fetch from /api/emails
+    source == 'file'   : load from ./test_emails.json (fallback to /api/emails if missing)
     """
     items: List[Dict[str, Any]] = []
 
@@ -80,9 +80,9 @@ def load_dataset(source: str, limit: int) -> List[Dict[str, Any]]:
             for it in res["json"][:limit]:
                 items.append({"text": it.get("text", ""), "subject": it.get("subject", "")})
         else:
-            print("[warn] /api/emails 실패:", res.get("error"))
+            print("[warn] /api/emails failed:", res.get("error"))
     else:
-        # file 우선
+        # Prefer file first
         if os.path.exists("test_emails.json"):
             try:
                 arr = json.load(open("test_emails.json", "r", encoding="utf-8"))
@@ -94,25 +94,25 @@ def load_dataset(source: str, limit: int) -> List[Dict[str, Any]]:
                         "subject": it.get("subject", ""),
                     })
             except Exception as e:
-                print("[warn] test_emails.json 로드 실패:", e)
+                print("[warn] Failed to load test_emails.json:", e)
 
-        # 폴백: API
+        # Fallback: API
         if not items:
             res = safe_get("/api/emails")
             if res["ok"]:
                 for it in res["json"][:limit]:
                     items.append({"text": it.get("text", ""), "subject": it.get("subject", "")})
             else:
-                print("[warn] /api/emails 실패:", res.get("error"))
+                print("[warn] /api/emails failed:", res.get("error"))
 
-    # 간단 정리
+    # Simple Summary
     items = [it for it in items if (it.get("text") or "").strip()]
     return items[:limit]
 
 
 def detect_lang(text: str) -> str:
     if not LANG_OK:
-        # 간단 휴리스틱
+        # Simple Heuristic
         return "ko" if any("\uac00" <= ch <= "\ud7af" for ch in text) else "en"
     try:
         return lang_detect(text)
@@ -125,7 +125,7 @@ def compute_rouge(sys_sum: str, ref_sum: str) -> Dict[str, float]:
         return {}
     scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
     scores = scorer.score(ref_sum, sys_sum)
-    # F1 기준만 취합
+    # Collect only F1 scores
     return {k: round(v.fmeasure, 4) for k, v in scores.items()}
 
 
@@ -191,7 +191,7 @@ def evaluate_item(item: Dict[str, Any]) -> Dict[str, Any]:
         out["sent_score"] = js.get("score", "")
         out["sent_category"] = js.get("mapped_category", "")
 
-    # 4) Reply (영/한 모두 측정)
+    # 4) Reply (measure both English and Korean)
     r4_en = safe_post("/reply", {"text": text, "lang": "en"})
     out["reply_en_ok"] = r4_en["ok"]
     out["reply_en_latency"] = round(r4_en.get("latency", 0.0), 3)
@@ -210,16 +210,17 @@ def evaluate_item(item: Dict[str, Any]) -> Dict[str, Any]:
     out["reply_ko_dist1"] = distinct_n(reply_ko, 1)
     out["reply_ko_dist2"] = distinct_n(reply_ko, 2)
 
-    # 5) 번역(양방향) — 짧게 측정
-    #   감점/보너스용 단순 품질 신호: 번역 후 언어 변화 여부
-    # 영어로
+    # 5) Translation (both directions) — quick evaluation
+    # Simple quality signal for penalty/bonus: check if language changes after translation
+
+    # in English
     tr_en = safe_post("/translate_llm", {"text": text, "target_lang": "en"})
     out["tr_en_ok"] = tr_en["ok"]
     out["tr_en_latency"] = round(tr_en.get("latency", 0.0), 3)
     tr_en_txt = (tr_en.get("json", {}) or {}).get("translated", "") if tr_en["ok"] else ""
     out["tr_en_lang"] = detect_lang(tr_en_txt) if tr_en_txt else ""
 
-    # 한국어로
+    # in Korean
     tr_ko = safe_post("/translate_llm", {"text": text, "target_lang": "ko"})
     out["tr_ko_ok"] = tr_ko["ok"]
     out["tr_ko_latency"] = round(tr_ko.get("latency", 0.0), 3)
@@ -238,7 +239,7 @@ def summarize_table(df: pd.DataFrame) -> str:
         return round(f(vals), 3) if vals else "-"
 
     lines.append(f"- Samples evaluated: **{n}**")
-    # 성공률
+    # Success Rate
     for key, label in [
         ("sum_fast_ok", "Summary(Fast) success"),
         ("sum_llm_ok", "Summary(LLM) success"),
@@ -252,7 +253,7 @@ def summarize_table(df: pd.DataFrame) -> str:
             rate = round(100 * df[key].fillna(False).mean(), 1)
             lines.append(f"- {label}: **{rate}%**")
 
-    # 지연시간
+    # Latency
     for key, label in [
         ("sum_fast_latency", "Latency Summary(Fast) [s]"),
         ("sum_llm_latency", "Latency Summary(LLM) [s]"),
@@ -267,7 +268,7 @@ def summarize_table(df: pd.DataFrame) -> str:
             if vals:
                 lines.append(f"- {label}: mean **{round(statistics.mean(vals),3)}**, median **{round(statistics.median(vals),3)}**")
 
-    # 요약 압축률(낮을수록 더 축약)
+    # Summarisation Compression Ratio (lower = more compressed)
     for key, label in [
         ("sum_fast_comp", "Compression(Fast)"),
         ("sum_llm_comp", "Compression(LLM)"),
@@ -277,7 +278,7 @@ def summarize_table(df: pd.DataFrame) -> str:
             if vals:
                 lines.append(f"- {label}: mean **{round(statistics.mean(vals),3)}**")
 
-    # ROUGE (있을 경우)
+    # ROUGE (if avaliable)
     if "sum_fast_rouge1" in df.columns:
         for rkey in ["sum_fast_rouge1","sum_fast_rouge2","sum_fast_rougeL",
                      "sum_llm_rouge1","sum_llm_rouge2","sum_llm_rougeL"]:
@@ -286,7 +287,7 @@ def summarize_table(df: pd.DataFrame) -> str:
                 if vals:
                     lines.append(f"- {rkey}: mean **{round(statistics.mean(vals),3)}**")
 
-    # Reply 다양성
+    # Reply Diversity
     for key, label in [
         ("reply_en_dist1","Reply EN Dist-1"),
         ("reply_en_dist2","Reply EN Dist-2"),
@@ -310,13 +311,13 @@ def write_markdown_report(df: pd.DataFrame, path_md="evaluation_report.md"):
 
     md.append("## Methodology\n")
     md.append(
-        "- Fast Summary: 사전 구축된 추출/압축 요약 파이프라인 호출\n"
-        "- LLM Summary: LLM을 이용한 요약 API(`/summarize_llm`) 호출\n"
-        "- Sentiment: 다국어 감정 모델 + 휴리스틱 사후보정(`/sentiment`)\n"
-        "- Reply: 영어/한국어 2종 생성(`/reply?lang=en|ko`) 후 길이/다양성 지표 산출\n"
-        "- Translate: LLM 번역(`/translate_llm`) 후 언어감지로 결과 확인\n"
-        "- 지연시간: 각 API 호출 벽시계 기준 측정\n"
-        "- (선택) ROUGE: test_emails.json에 ref_summary가 있을 경우 계산\n"
+        "- Fast Summary: Call pre-built extractive/compressive summarization pipeline\n"
+        "- LLM Summary: Summarization API using LLM (`/summarize_llm`)\n"
+        "- Sentiment: Multilingual sentiment model + heuristic post-adjustment (`/sentiment`)\n"
+        "- Reply: Generate in both English/Korean (`/reply?lang=en|ko`) and evaluate length/diversity metrics\n"
+        "- Translate: Use LLM translation (`/translate_llm`) and verify result with language detection\n"
+        "- Latency: Measure wall-clock time for each API call\n"
+        "- (Optional) ROUGE: Calculate if `ref_summary` is provided in test_emails.json\n"
     )
 
     md.append("## Sample Rows (first 5)\n")
@@ -330,8 +331,8 @@ def write_markdown_report(df: pd.DataFrame, path_md="evaluation_report.md"):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", choices=["file","gmail"], default="file",
-                    help="평가 데이터 소스(file: test_emails.json, gmail: /api/emails)")
-    ap.add_argument("--limit", type=int, default=20, help="평가할 샘플 개수")
+                    help="Evaluation Data Sources(file: test_emails.json, gmail: /api/emails)")
+    ap.add_argument("--limit", type=int, default=20, help="Number of samples to evaluate")
     ap.add_argument("--out_csv", default="evaluation_results.csv")
     ap.add_argument("--out_md", default="evaluation_report.md")
     args = ap.parse_args()
@@ -341,7 +342,7 @@ def main():
 
     items = load_dataset(args.source, args.limit)
     if not items:
-        print("[error] 평가할 데이터가 없습니다.")
+        print("[error] No data available for evaluation.")
         return
 
     rows = []

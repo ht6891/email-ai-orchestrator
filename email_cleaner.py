@@ -1,7 +1,7 @@
 # email_cleaner.py
 
 SIGNATURE_STARTERS = [
-    "CONFIDENTIALITY",  # 기존 영문 시그니처
+    "CONFIDENTIALITY",  # Existing English Signatures
     "Sekyee Business ICT Solutions",
     "173 Junction Road",
     "Facebook icon", "LinkedIn icon", "Twitter icon", "Logo",
@@ -13,17 +13,17 @@ SIGNATURE_STARTERS = [
 
 def remove_signature(text):
     """
-    이메일 본문에서 시그니처/주소/푸터 제거
-    키워드가 포함된 줄부터 이후 전체 제거
+    Remove signatures/addresses/footers from email body
+    Remove everything from the line containing specific keywords onward
     """
     lines = text.splitlines()
     cleaned_lines = []
 
     for line in lines:
-        # 공백 제거 후 소문자로 키워드 탐색
+        # Search keywords after trimming spaces and converting to lowercase
         stripped_line = line.strip().lower()
         if any(kw.lower() in stripped_line for kw in SIGNATURE_STARTERS):
-            break  # 시그니처 시작
+            break  # Signature Start
         cleaned_lines.append(line)
 
     return "\n".join(cleaned_lines).strip()

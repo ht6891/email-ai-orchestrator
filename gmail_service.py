@@ -1,5 +1,3 @@
-# gmail_service.py
-
 import os.path
 import base64
 import re
@@ -8,19 +6,19 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-# Gmail API에서 사용할 권한 범위
+# Permission scopes for Gmail API
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
 
 def get_gmail_service():
-    """OAuth 인증 후 Gmail API 서비스 객체 생성"""
+    """Create Gmail API service object after OAuth authentication"""
     creds = None
 
-    # token.json에 이전 인증 토큰이 있으면 사용
+    # Use token.json
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
 
-    # 없거나 만료되었으면 새로 인증
+    # If missing or expired, perform new authentication
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
@@ -28,17 +26,17 @@ def get_gmail_service():
             flow = InstalledAppFlow.from_client_secrets_file(
                 'credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
-        # 인증 후 저장
+        # Save after authentication
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
 
-    # Gmail 서비스 객체 생성
+    # Create Gmail service object
     service = build('gmail', 'v1', credentials=creds)
     return service
 
 
 def extract_body_from_payload(payload):
-    """다양한 구조에 대응하여 이메일 본문(text/plain 또는 html) 추출"""
+    """Extract email body (text/plain or HTML) handling various structures"""
     def decode_base64(data):
         return base64.urlsafe_b64decode(data.encode('ASCII')).decode('utf-8', errors='ignore')
 
@@ -52,18 +50,18 @@ def extract_body_from_payload(payload):
             return re.sub('<[^<]+?>', '', html)
         return ""
 
-    # 1. 가장 바깥쪽 본문 추출 시도
+    # 1. Attempt to extract outermost body
     if "body" in payload and payload["body"].get("data"):
         return decode_base64(payload["body"]["data"])
 
-    # 2. 단일 레벨 parts 처리
+    # 2. Handle single-level parts
     if "parts" in payload:
         for part in payload["parts"]:
             body = get_plain_text(part)
             if body:
                 return body.strip()
 
-            # 3. 중첩 parts 재귀 처리
+            # 3. Recursively handle nested parts
             if "parts" in part:
                 for subpart in part["parts"]:
                     body = get_plain_text(subpart)
@@ -75,7 +73,7 @@ def extract_body_from_payload(payload):
 
 
 def get_recent_emails(max_results=5):
-    """최근 이메일 본문 max_results 개 가져오기"""
+    """Fetch the most recent email bodies (max_results)"""
     service = get_gmail_service()
 
     results = service.users().messages().list(
@@ -93,7 +91,7 @@ def get_recent_emails(max_results=5):
     return email_bodies
 
 
-# 테스트 실행용
+# For test execution
 if __name__ == "__main__":
     emails = get_recent_emails()
     for i, email in enumerate(emails, 1):

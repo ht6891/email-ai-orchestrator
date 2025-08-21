@@ -1,22 +1,315 @@
 ﻿subject,lang_detected,len_words,sum_fast_ok,sum_fast_latency,sum_fast,sum_fast_comp,sum_llm_ok,sum_llm_latency,sum_llm,sum_llm_comp,sent_ok,sent_latency,sent_label,sent_score,sent_category,reply_en_ok,reply_en_latency,reply_en,reply_en_len,reply_en_dist1,reply_en_dist2,reply_ko_ok,reply_ko_latency,reply_ko,reply_ko_len,reply_ko_dist1,reply_ko_dist2,tr_en_ok,tr_en_latency,tr_en_lang,tr_ko_ok,tr_ko_latency,tr_ko_lang
-"Hello team,",en,102,True,8.942,Supriya Sonu can't access her folder even when she is in office. She can access it via the Supriya.sonu folder created by HyunTae last Wednesday.,0.2451,True,65.814,"Supriya Sonu is reporting an issue where she cannot access her folder, even while in the office. She can still access a folder created last Wednesday by HyunTae on a PC. Please investigate and resolve this access problem promptly.",0.3824,True,2.08,1 star,0.85,negative,True,75.784,"Subject: Re: Folder Access Issue
+"Hello team,",en,102,True,16.05,Supriya Sonu can't access her folder even when she is in office. She can access it via the Supriya.sonu folder created by HyunTae last Wednesday.,0.2451,True,69.932,"Supriya Sonu has reported an issue where she cannot access her folder, even while in the office, but can access a folder created last Wednesday by HyunTae. She’s attached screenshots to illustrate the problem and requests that the team investigate and resolve this access issue promptly.",0.451,True,2.078,1 star,0.85,negative,True,74.634,"Subject: Re: Folder Access Issue
 
 Dear Supriya,
 
-Thank you for bringing this to our attention. We’ve received the screenshots and are investigating the issue with your folder access. We’ll look into this urgently and will keep you updated on our progress.
+Thank you for bringing this to our attention. We’ve received the screenshots and are investigating the issue with your folder access. We’ll work to resolve this promptly. 
 
-Kind regards,
+Best regards,
 
 [Your Name/IT Support Team] 
 
 --- 
 
-**Note:** I’ve kept the tone polite and professional, acknowledged receipt of the screenshots, and assured her that the issue is being investigated.",70,0.8429,0.9855,True,77.593,"안녕하세요, 수프리아 님.
+**Note:** *I’ve included a placeholder for your name/team name. You should replace ""[Your Name/IT Support Team]"" with the appropriate contact information.*",62,0.8548,0.9836,True,126.512,"안녕하세요, 수프리아 님.
 
-문의 주셔서 감사합니다. 첨부된 스크린샷을 확인했으며, 해당 문제를 즉시 조사하여 해결하도록 하겠습니다. 불편을 드려 죄송합니다.
+사진을 첨부해주셔서 감사합니다. 해당 문제점을 확인하고 조치해 드리겠습니다. 빠른 시일 내에 해결될 수 있도록 노력하겠습니다. 
 
 감사합니다.
 
 (Annyeonghaseyo, Supriya nim.
 
-Munui jusyeoseo gamsajeo sumgakdo chuekdo jeseo juyoheo haksuldo makeusigo haksuldo makeusigo habtseumnida. Bulmyeouldeureo joesonghamnida. Gamsahamnida.)",37,0.9189,0.9722,True,84.619,en,True,170.252,ko
+Photosjeo chatbeo haejusyeoseo gamsahamnida. Haedang munjeomyeone hwagin-go chojihae deurigessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon gyesokhadegi seonggaunil guro noh-sikhadegi seot-igessipsseumyeon.)
+
+**(Translation: Hello, Ms. Sonu. Thank you for attaching the photos. We will investigate and resolve this issue. We will make every effort to resolve it as soon as possible.)**",120,0.5083,0.5462,True,84.861,en,True,170.959,en
+"Good Morning, Angelika.",en,19,True,4.253,Angelika has created a new account as you requested. Please check the details below.,0.7368,True,14.632,"Good Morning, Angelika. A new account has been created as you requested, and the details are below. Please review the account information at your earliest convenience.",1.3684,True,2.055,3 stars,0.75,neutral,True,13.029,"Subject: Re: New Account
+
+Good Morning,
+
+Thank you for creating the new account – I’ve received the details. 
+
+Best regards,
+
+Angelika",21,0.9524,1.0,True,15.843,"안녕하세요, [이메일 보낸 사람 이름]님.
+
+새로운 계정을 만들어주셔서 감사합니다. 자세한 내용을 확인해보겠습니다.
+
+감사합니다.
+
+(Translation: Hello [Sender's Name], Thank you for creating the new account. I will check the details.)",29,0.931,1.0,True,12.722,en,True,13.229,ko
+"@charset ""UTF-8"";/*! cafe note v2.6.6_knox | Copyright 2014, S-Core, Inc. All Ri",en,433,True,2.059,"@charset ""UTF-8"";/*! cafe note v2.6.6_knox | Copyright 2014, S-Core, Inc.",0.0231,True,83.379,"This email outlines a request to update the cafe note system, specifically referencing version 2.6.6_knox. The core task involves modifying the image display, particularly regarding images with `data-cui-alt-image` attributes, and ensuring consistent formatting across tables and content, including updating the system’s version to 2.6.6_knox by October 27th.",0.1085,True,2.094,5 stars,0.9,positive,True,271.946,"안녕하세요 김광림 부장님,
+
+요청하신 대로 VPN 장비만 유지관리가 가능한 점을 인지하고 시스코 장비로 견적을 다시 요청드립니다. 런던 사무실 및 SDSE 데이터 센터쪽 장비 모두 포함하여 견적서를 보내드리겠습니다. 
+
+감사합니다,
+정회종 드림",30,1.0,1.0,True,264.591,"김광림 부장님, 안녕하세요. 
+
+견적 요청 주셔서 감사합니다. 런던 사무실 및 SDSE 데이터센터 VPN 장비 교체 및 설치에 대한 이해를 바탕으로 최적의 솔루션 제공하도록 하겠습니다. 
+
+감사합니다.
+
+정회종 드림",27,0.9259,1.0,True,218.352,en,True,191.267,en
+안녕하세요 손지원 대리님.,ko,49,True,2.063,안녕하세요 손지원 대리님. 우리은행 런던 지점 FX 전산기기 견적서 전달해드립니다.,0.2041,True,23.722,"안녕하세요 손지원 대리님.
+
+최현태 님으로부터 우리은행 런던 지점 FX 전산기기 견적서를 받았습니다. 견적서 확인 후 승인해주시면 주문 진행이 가능하며, Office IT Appliances의 수요 증가로 인해 가격 변동이 있을 수 있다는 점을 참고해주시기 바랍니다.",0.6735,True,2.045,3 stars,0.75,neutral,True,25.381,"Subject: Re: FX 전산기기 견적서
+
+Dear Mr. Choi,
+
+Thank you for sending over the FX data device quotation. We’ve received the attachment and appreciate you bringing the potential price fluctuations to our attention. 
+
+We will review the details and get back to you shortly to confirm.
+
+Best regards,
+
+[Your Name]
+
+--- 
+
+Would you like me to modify this response in any way?",62,0.8226,1.0,True,17.979,"안녕하세요, 최현태 님.
+
+견적서 잘 받았습니다. 첨부파일 확인 후 조치하도록 하겠습니다. 감사합니다.
+
+[본인 이름] 드림.",15,1.0,1.0,True,26.617,en,True,28.843,ko
+"이지연 과장님,",ko,96,True,2.065,"이지연 과장님,
+
+간단히 답변드리자면, 현재 인터넷 라인중 hSo라인은 backbone 스위치를 거치지 않고 직접 방화벽으로 연결되기 때문에 방화벽
+이중화를 위해서는 중간 Backbone 스위치를 거쳐
+이중화되는 양쪽 방화벽 모두 연결될 수 있어야 합니다. 따라서 추가적으로 인터넷 백본 스위치가 1개가 더 필요합니다.",0.4062,True,31.752,"김광림 님께, 이지연 과장님은 현재 hSo 라인이 방화벽에 직접 연결되어 있어 방화벽 이중화를 위해 추가적인 인터넷 백본 스위치 1개가 필요하다고 문의 드렸습니다. 이 스위치는 기존 장비 추가로 인해 필요하게 된 것입니다.",0.3229,True,2.043,3 stars,0.75,neutral,True,29.906,"Subject: Re: Firewall Redundancy Inquiry
+
+Dear Mr. Kim,
+
+Thank you for the clarification regarding the firewall redundancy. 
+
+Could you please provide a brief overview of the new equipment and explain its necessity for the dual firewall implementation?
+
+Sincerely,
+
+이지연 드림",40,0.85,0.9744,True,26.859,"안녕하세요 김광림 님,
+
+답변 감사합니다. 추가적인 백본 스위치 설치가 필요한 사항을 확인하고 진행하도록 하겠습니다. 
+
+감사합니다.
+이지연 드림",17,0.9412,1.0,True,47.279,en,True,48.839,ko
+"부장님, 빠른회신 감사드립니다.",ko,134,True,2.072,"부장님, 빠른회신 감사드립니다. 그런데, Firewall 이중화에서, 장비가 작년에 비해 추가된 부분이 있던데..",0.0896,True,51.0,"이지연 과장은 NAC 장비 관련하여, 작년 견적서와 함께 내부망 설치에만 집중한 재견적을 요청했습니다. 특히, 본점에서 이미 시스템이 사용 중이며 프로그램이 내부 PC에 설치되어 있다는 점을 강조하며, 장비 설치 기술 지원 부분만 다시 견적을 부탁드립니다.",0.2537,True,2.07,3 stars,0.75,neutral,True,52.821,"Subject: Re: Re: Re: [REMINDER] [국민은행 런던지점]견적 확인 요청
+
+Dear Mr. Kim,
+
+Thank you for forwarding the revised estimate. We appreciate you clarifying the scope of work. 
+
+We will review the attached estimate and respond with a technical support-only re-quote as requested.
+
+Sincerely,
+
+이지연 
+
+[jy.lee22@kbfg.com]",45,0.8667,0.9773,True,47.289,"이지연 과장님,
+
+문의 주셔서 감사합니다. 과장님의 요청대로, NAC 장비 설치 기술 지원 부분에 대한 재견적서를 준비하여 최대한 빠른 시일 내에 전달드리도록 하겠습니다. 
+
+감사합니다.
+
+김광림 드림",25,0.96,1.0,True,102.777,en,True,104.989,ko
+"부장님, 빠른회신 감사드립니다.",ko,134,True,2.046,"부장님, 빠른회신 감사드립니다. 그런데, Firewall 이중화에서, 장비가 작년에 비해 추가된 부분이 있던데..",0.0896,True,51.496,"이지연 과장은 NAC 장비 견적 관련하여, 작년 견적서와 함께 내부망 설치만 진행하고 기술 지원 부분에 대한 재견적을 요청했습니다. 특히, 본점에서 이미 NAC 장비를 사용 중이며, 프로그램은 내부 PC에 설치되어 있어, 장비 설치 외 기술 지원 부분만 재견적해달라고 요청했습니다.",0.2836,True,2.059,3 stars,0.75,neutral,True,52.375,"Subject: Re: Re: Re: [REMINDER] [국민은행 런던지점]견적 확인 요청
+
+Dear Mr. Kim,
+
+Thank you for forwarding the revised quotation. We appreciate you clarifying the scope of the NAC equipment installation. 
+
+We will review the attached quotation with a focus on the technical support aspects as requested.
+
+Sincerely,
+
+이지연 
+
+[jy.lee22@kbfg.com]",49,0.8367,0.9792,True,46.359,"안녕하세요, 김광림 팀장님.
+
+문의하신 사항에 대해 자세히 확인하고, 기술 지원 부분에 대한 재견적을 요청 드립니다. 빠른 시일 내에 필요한 정보를 전달 드리겠습니다.
+
+감사합니다.
+이지연 드림",25,1.0,1.0,True,100.907,en,True,103.312,ko
+(No readable body found),en,4,True,3.759,There was no readable body found. There is still no sign of a body.,3.5,True,9.841,⚠️ The model did not return a valid summary. Try again with clearer input.,3.5,True,2.044,3 stars,0.75,neutral,True,8.869,⚠️ The model did not return a valid reply.,9,1.0,1.0,True,11.011,⚠️ The model did not return a valid reply.,9,1.0,1.0,True,6.631,en,True,6.448,en
+안녕하세요? 견적 전달 감사드립니다.,ko,136,True,2.051,안녕하세요? 견적 전달 감사드립니다.,0.0294,True,49.838,"안녕하세요? 이지연 과장님께, 저희는 전달된 견적서를 검토 중입니다. 다만 NAC의 경우 이미 내부 시스템을 사용 중이며, 장비 설치 기술 지원 부분에 대해서만 재견적을 부탁드립니다. 첨부된 작년 견적서 참고 부탁드립니다.",0.2132,True,2.03,3 stars,0.75,neutral,True,54.562,"Subject: Re: Re: [REMINDER] [국민은행 런던지점]견적 확인 요청
+
+Dear 김광림,
+
+Thank you for promptly providing the revised quotation. We appreciate you clarifying that we only require installation support for the NAC system, given its existing implementation within KBFG.
+
+We will review the revised quotation and get back to you shortly.
+
+Best regards,
+
+이지연 드림 
+
+(Jy.lee22@kbfg.com)",55,0.8545,0.9815,True,46.192,"안녕하세요 김광림 팀장님,
+
+네, 전달해주신 내용을 확인했습니다. NAC 부분은 장비 설치 기술 지원으로만 재견적 부탁드립니다. 
+
+감사합니다.
+
+이지연 드림",18,1.0,1.0,True,67.498,en,True,50.183,ko
+(No readable body found),en,4,True,3.831,There was no readable body found. There is still no sign of a body.,3.5,True,9.674,⚠️ The model did not return a valid summary. Try again with clearer input.,3.5,True,2.064,3 stars,0.75,neutral,True,8.822,⚠️ The model did not return a valid reply.,9,1.0,1.0,True,11.248,⚠️ The model did not return a valid reply.,9,1.0,1.0,True,6.493,en,True,6.368,en
+"Good Morning Sekyee,",en,77,True,6.637,"Aaron Pusey is a new Technical Engineer starting on 26/08/2025. Here are the details of the systems, access and set up required for field-based Technical Engineers.",0.3377,True,34.01,"Good morning Sekyee, please set up the necessary email address and permissions for Aaron Pusey, who is starting on 26/08/2025. This includes email addresses like *service@* and *all.staff@*, alongside access to systems such as 8x8, ClockIt, and Spendesk, all located within the G/Shared Drives folders. Please let me know if you have any questions regarding this setup.",0.7403,True,2.044,3 stars,0.75,neutral,True,30.467,"Subject: Re: New Starter Setup - Aaron Pusey
+
+Good Morning,
+
+Thank you for sending these details for Aaron Pusey’s setup. I will review the information regarding the email addresses, systems, and drives. 
+
+Please let me know if you require any further information from my side.
+
+Kind regards,
+
+Sekyee",48,0.8958,1.0,True,29.177,"안녕하세요, Sekyee님.
+
+새로운 팀원 Aaron Pusey 씨의 시작일(26/08/2025)을 위한 시스템 및 권한 설정에 대한 정보 감사합니다. 문의 사항이 있을 경우 바로 연락드리겠습니다.
+
+감사합니다.
+(Gamsahamnida - Thank you)",27,0.963,1.0,True,40.783,en,True,46.493,ko
+"안녕하세요,",en,66,True,2.042,"안녕하세요,
+
+로그인 완료습니다. 감사합니다.",0.0606,True,36.321,"안녕하세요,
+
+Seungjin Hong님께서 Jay Kang님께 10분 동안 2FA를 해제하여 로그인 가능하게 도와주셨습니다. 2FA 해제 후, Jay Kang님께서는 나비엔 플레이스토어 계정을 검증 완료하신 것으로 보입니다.",0.3636,True,2.055,3 stars,0.75,neutral,True,32.485,"Subject: Re: Re: 나비엔 - 플레이스토어 계정 홈페이지 검증 관련
+
+Dear Seungjin,
+
+Thank you for processing the 2FA removal – I’ve been able to log in.
+
+Sincerely,
+
+Jay Kang",29,0.9655,1.0,True,30.336,"안녕하세요, 홍승진 님.
+
+알려주셔서 감사합니다. 지금 바로 2FA를 해제하여 로그인했습니다. 
+
+감사합니다.
+강재엽 드림",13,0.9231,1.0,True,63.958,en,True,65.874,en
+안녕하세요,ko,23,True,2.074,"안녕하세요
+
+저희 쪽으로 요청해주시면 10분간 2FA 해제 해드릴 수 있는데
+일단 현재 10분간 2FA 해제 되어서 로그인 가능하십니다. 감사합니다
+홍승진 드림
+
+
+Seungjin Hong",1.0,True,16.951,"안녕하세요, 홍승진 님께서는 10분 동안 2FA를 해제해 드릴 수 있다고 안내드립니다. 즉시 로그인하실 수 있도록 10분간 2FA 해제를 요청하시면 됩니다. 감사합니다.",0.913,True,2.052,3 stars,0.75,neutral,True,14.981,"Subject: Re: 2FA Assistance
+
+Dear Mr. Hong,
+
+Thank you for providing this information. I appreciate the offer to temporarily disable the 2FA.
+
+Sincerely,
+
+[Your Name]",25,0.96,1.0,True,15.549,"안녕하세요, 홍승진 님. 
+
+알려주셔서 감사합니다. 10분간 2FA 해제를 요청해주시면 즉시 처리해 드리겠습니다. 
+
+감사합니다.
+
+[Your Name] 드림",16,0.9375,1.0,True,16.287,en,True,17.842,ko
+안녕하세요,vi,17,True,2.051,"안녕하세요
+
+요청하신 이메일 비밀번호 공유 드립니다. service@navienuk.com - Navienuk!23
+Technical.support@navienuk.com - Navienuk!24
+
+
+감사합니다
+홍승진 드림
+
+
+Seungjin Hong",1.0,True,18.825,"안녕하세요, 이메일 비밀번호 공유 드립니다. 홍승진 님께서 service@navienuk.com (Navienuk!23) 및 Technical.support@navienuk.com (Navienuk!24) 계정의 비밀번호를 공유해 드립니다. 감사합니다.",1.0,True,2.067,3 stars,0.75,neutral,True,15.033,"Subject: Re: Password Information
+
+Dear Mr. Hong,
+
+Thank you for providing the password information. We appreciate you sending this to us.
+
+Sincerely,
+
+[Your Name/Your Company Name]",26,0.9615,1.0,True,13.824,"안녕하세요, 홍승진 님.
+
+받으신 정보 감사합니다. 잘 전달받았습니다. 
+
+감사합니다.
+[Your Name] 드림",12,0.9167,1.0,True,16.723,en,True,17.455,ko
+"안녕하세요,",vi,142,True,2.045,"안녕하세요,
+
+빠른 회신 감사드립니다. 보내주신 계정 확인해보았지만 2FA가 적용되어 있어 로그인이 안됩니다.",0.0845,True,59.998,"안녕하세요, 강재엽 매니저님께서 Navien UK 계정으로 서비스 앱 및 워런티 앱 이관 중 홈페이지 검증 관련 문의를 보내주셨습니다. 이메일 website@navienuk.com으로 전송된 확인 이메일을 확인해주시고, 2FA로 인해 로그인이 안되는 문제에 대한 도움을 요청하셨습니다.",0.2254,True,2.045,3 stars,0.75,neutral,True,56.137,"Subject: Re: Account Verification
+
+Dear Mr. Kang,
+
+Thank you for contacting us. We’ve reset your password and are happy to confirm your account details. Please proceed with logging in using the new credentials.
+
+Sincerely,
+
+Sekyee Support Team",37,0.973,1.0,True,55.952,"안녕하세요 강재엽 매니저님,
+
+문의하신 내용 확인했습니다. 2FA 설정으로 인해 로그인에 어려움을 겪고 계시는군요. 가능한 한 빨리 해결될 수 있도록 조치하겠습니다. 
+
+감사합니다.
+Sekyee Support Team",24,1.0,1.0,True,132.381,en,True,110.097,ko
+안녕하세요.,ko,18,True,2.038,안녕하세요. 나비엔 최장현 입니다.,0.2222,True,16.647,안녕하세요. 최장현 님께서 두 개의 이메일 계정의 로그인 비밀번호 공유를 요청드립니다. 그는 첨부 이미지(image.png)를 통해 이 요청을 보내고 있습니다.  빠른 확인 및 공유를 부탁드립니다.,1.3333,True,2.061,3 stars,0.75,neutral,True,19.816,"Subject: Re: Password Request
+
+Dear Mr. Cho,
+
+Thank you for your email.  Unfortunately, I cannot share login credentials due to security protocols. 
+
+Please let me know if you require assistance with accessing your account through alternative support channels.
+
+Sincerely,
+
+[Your Name] 
+
+---
+Note: I've kept the response polite and professional, acknowledging the request while explaining the reason for denial.",59,0.9153,1.0,True,15.963,"안녕하세요, 최장현 님.
+
+요청하신 계정 로그인 비밀번호 공유는 보안상의 이유로 어렵습니다. 다른 방법으로 필요한 정보가 있으시다면 알려주시면 최대한 도움을 드리겠습니다.
+
+감사합니다.
+
+[Your Name/Company Name] 드림.",25,1.0,1.0,True,15.219,en,True,15.444,ko
+"안녕하세요,",en,141,True,2.058,"안녕하세요,
+
+확인 감사드립니다. 보내주신 계정 확인해보았지만 2FA가 적용되어 있어 로그인이 안됩니다.",0.078,True,62.131,"안녕하세요, 강재엽 매니저님께서 Navien UK 계정으로 서비스 앱 및 워런티 앱 이관 중 verification 절차를 진행하고 계신 것으로 확인됩니다. 하지만, 계정 확인 이메일이 website@navienuk.com으로 전송되었음에도 불구하고 2FA 설정으로 인해 로그인에 문제가 발생하고 있으며, 해당 이메일 확인 및 로그인 지원을 요청하셨습니다.",0.2837,True,2.05,3 stars,0.75,neutral,True,58.611,"Subject: Re: Verification Assistance
+
+Dear Mr. Kang,
+
+Thank you for reaching out. We’ve received your email and will immediately look into the verification process for your Navien UK account. 
+
+We’ll be in touch as soon as we’ve completed the necessary checks.
+
+Sincerely,
+
+Sekyee Support Team",45,0.9111,1.0,True,65.162,"안녕하세요, 강재엽 매니저님. 확인 메일 주신 내용 확인했습니다. 2FA 설정으로 인해 로그인 문제가 발생했으니, 2FA 설정을 변경 후 다시 시도해 보시길 바랍니다. 혹시 문제가 지속되시면 언제든지 다시 문의주세요. 감사합니다.
+
+(안녕하세요, 강재엽 매니저님. 확인 메일 주신 내용 확인했습니다. 2FA 설정으로 인해 로그인 문제가 발생했으니, 2FA 설정을 변경 후 다시 시도해 보시길 바랍니다. 혹시 문제가 지속되시면 언제든지 다시 문의주세요.)",57,0.4912,0.5536,True,131.043,en,True,136.979,ko
+(No readable body found),en,4,True,3.77,There was no readable body found. There is still no sign of a body.,3.5,True,10.67,⚠️ The model did not return a valid summary. Try again with clearer input.,3.5,True,2.043,3 stars,0.75,neutral,True,9.038,⚠️ The model did not return a valid reply.,9,1.0,1.0,True,8.632,⚠️ The model did not return a valid reply.,9,1.0,1.0,True,6.309,en,True,6.424,en
+안녕하세요 강재엽 매니저님.,ko,96,True,2.029,안녕하세요 강재엽 매니저님. 계정 정보 공유해드립니다.,0.0625,True,38.431,"안녕하세요 강재엽 매니저님께, Sekyee Support Team에서 제공하는 계정 정보는 ID: website@navienuk.com, Password: website-Passw0rd2020! 입니다. 강재엽 매니저님은 현재 Navien UK 계정으로 서비스 앱과 워런티 앱 이관 중이며, 홈페이지(https://navien.co.uk/) 확인을 통해 verification 절차를 진행하고 계신 것으로 보입니다.",0.3646,True,2.041,3 stars,0.75,neutral,True,30.188,"Subject: Re: Account Information
+
+Dear Jay Kang,
+
+Thank you for sending the account information. We have received it and will review the verification details as you requested.
+
+Sincerely,
+
+Sekyee Support Team",31,0.9355,1.0,True,29.477,"안녕하세요 강재엽 매니저님,
+
+제공해주신 계정 정보 확인했습니다. verification 절차 진행에 필요한 정보 잘 활용하도록 하겠습니다. 감사합니다.
+
+[본인 이름] 드림",19,0.9474,1.0,True,59.502,en,True,60.871,ko
+안녕하세요.,ko,20,True,2.061,안녕하세요. 나비엔 영국법인 최장현입니다.,0.2,True,15.58,"안녕하세요. 최장현 님께, 
+
+저희 법인에서 사용하는 Konica 복합기 3대의 계약 기간 및 월 사용 비용에 대한 정보를 요청드립니다.  이 정보 공유를 부탁드립니다. 감사합니다.",1.15,True,2.052,3 stars,0.75,neutral,True,19.368,"Subject: Regarding Konica Multi-Function Printer Information
+
+Dear Mr. Choi,
+
+Thank you for your email. Please find below the contract details and monthly usage costs for the three Konica multi-function printers used by our legal entity.
+
+Sincerely,
+
+[Your Name/Company Name] 
+
+---
+(Please replace [Your Name/Company Name] with the appropriate information)",49,0.8571,0.9583,True,14.33,"안녕하세요, 최장현 님.
+
+문의하신 내용에 대해 확인 후, 계약 기간 및 월 사용 비용 정보를 최대한 빠르게 공유 드리겠습니다. 
+
+감사합니다.
+
+[당신의 이름/직책] 드림.",23,1.0,1.0,True,15.74,en,True,15.133,ko
